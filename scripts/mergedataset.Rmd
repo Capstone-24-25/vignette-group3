@@ -1,0 +1,20 @@
+---
+title: "merge_datasets"
+author: "Rebecca Chang"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+
+PersonData <- read_rds('Data/PersonData_111A.Rds')
+HHData <- read_rds('Data/HHData_111A.Rds')
+hh_bgDensity <- read_rds('Data/hh_bgDensity.Rds')
+
+personHHData <- left_join(PersonData, HHData) %>% left_join(hh_bgDensity)
+```
