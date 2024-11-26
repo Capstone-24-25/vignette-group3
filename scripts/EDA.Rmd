@@ -1,0 +1,119 @@
+---
+title: "Exploratory Data Analysis"
+author: "Rebecca Chang"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Loading Necessary Packages
+```{r}
+library(tidyverse)
+library(sf)
+
+```
+#Reading In Data/Merging Datasets
+```{r}
+PersonData <- read_rds('../data/PersonData_111A.Rds')
+HHData <- read_rds('../data/HHData_111A.Rds')
+hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
+
+personHHData <- left_join(PersonData, HHData) %>% left_join(hh_bgDensity)
+
+county_shp <- st_read("../data/counties/counties.shp")
+```
+#Quick Plot
+```{r}
+plot(county_shp["NAME"])
+```
+The unique colors correspond to the unique names of each county. However, you will notice that there are repeat colors because the color palette available when plotting in such a simple way is limited.
+
+
+#List Variable Names
+```{r}
+names(personHHData)
+```
+#We will now be taking some of the CHTS person and household characteristics and aggregating them to the county level so we can map the traits of our CHTS respondents county-by-county.
+
+#To start off, let’s get the total count of how many people in our survey come from the various counties of California:
+```{r}
+personHHData %>% 
+  group_by(CTFIP, County) %>% #added County to this grouping so we can see the county names
+  summarise(count=n()) %>% 
+  view()
+```
+
+```{r}
+prhh_aggreg <- personHHData %>% 
+  group_by(County, CTFIP) %>%
+  mutate(count = n()) %>% # the new column called 'count'
+  summarise_at(vars(-hhid, -pnum, -bg_group), mean)
+
+View(prhh_aggreg)
+```
+
+```{r}
+county_prhh_shp <- county_shp %>% left_join(prhh_aggreg)
+view(county_prhh_shp) # check the data to see what we get
+```
+
+
+# Map of the percentage of CHTS respondents born in the USA per county.
+
+```{r}
+mapview(county_prhh_shp, # the dataset to use 
+        zcol = "bornUSA", # tells it which column to map
+        legend = TRUE, # if FALSE, it won't show the legend 
+        label = as.character(county_prhh_shp$NAME), # tells it the column whose value you want to appear when you hover over a shape with your mouse
+        popup = leafpop::popupTable(x = county_prhh_shp, zcol = c("bornUSA", "count"))  # determines what is included in the popup window when you click on a shape
+        )
+```
+
+# Group the data we have into 4 parts based on their bg_group
+```{r}
+county_bg_aggreg <- personHHData %>% 
+  group_by(County, CTFIP, bg_group) %>%  # group by county, CTFIP, and also bg_group
+  mutate(count = n()) %>% 
+  summarise_at(vars(-hhid, -pnum), mean)
+
+view(county_bg_aggreg)
+
+county_bg_shp <- county_shp %>% 
+  merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
+  left_join(county_bg_aggreg)
+```
+
+
+```{r}
+urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
+                          zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                          layer.name = "Urban Trips")
+
+suburb_TripMap <- mapview(filter(county_bg_shp, bg_group == "Suburban"),
+                          zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                          layer.name = "Suburban Trips")
+
+exurb_TripMap <- mapview(filter(county_bg_shp, bg_group == "Exurban"),
+                         zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                         layer.name = "Exurban Trips")
+
+rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
+                         zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                         layer.name = "Rural Trips")
+```
+
+
+
+```{r}
+mapview(county_prhh_shp, 
+        zcol = "Sum_PMT", 
+        legend = TRUE, 
+        label = as.character(county_prhh_shp$CTFIP), 
+        popup = leafpop::popupTable(x = county_prhh_shp, 
+                                    zcol = c("NAME", "count", "Sum_PMT"))  
+)
+```
+
