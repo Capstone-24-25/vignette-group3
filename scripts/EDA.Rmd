@@ -2,73 +2,94 @@
 title: "Exploratory Data Analysis"
 author: "Rebecca Chang"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Loading Necessary Packages
+## Loading Necessary Packages
 
 ```{r}
 library(tidyverse)
+
+# Load spatial data
+require(sf) || install.packages("sf", dependencies = TRUE)
 library(sf)
 
+require(mapview) || install.packages("mapview", dependencies = TRUE)
+library(mapview)
+mapviewOptions(fgb = FALSE)
+
+require(leafsync) || install.packages("leafsync", dependencies = TRUE)
+library(leafsync)
+
+require(maps) || install.packages("maps", dependencies = TRUE)
+library(maps)
 ```
 
-#Reading In Data/Merging Datasets
+## Combine Person/Household Data
 
 ```{r}
 PersonData <- read_rds('../data/PersonData_111A.Rds')
 HHData <- read_rds('../data/HHData_111A.Rds')
 hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
 
-personHHData <- left_join(PersonData, HHData) %>% left_join(hh_bgDensity)
+personHHData <- left_join(PersonData, HHData) %>%
+  left_join(hh_bgDensity)
 
 county_shp <- st_read("../data/counties/counties.shp")
 ```
 
-#Quick Plot
+## Quick Plot
 
 ```{r}
-plot(county_shp["NAME"])
+plot(county_shp["NAME"])  
 ```
 
-The unique colors correspond to the unique names of each county. However, you will notice that there are repeat colors because the color palette available when plotting in such a simple way is limited.
+The unique colors correspond to the unique names of each county.
 
-#List Variable Names
+## List Variable Names
 
 ```{r}
 names(personHHData)
 ```
 
-#We will now be taking some of the CHTS person and household characteristics and aggregating them to the county level so we can map the traits of our CHTS respondents county-by-county.
+# Interactive Map
 
-#To start off, let's get the total count of how many people in our survey come from the various counties of California:
+## Aggregating CHTS traits to county level and joining to shapefile
+
+Taking some of the CHTS person and household characteristics and aggregating them to the county level so we can map the traits of our CHTS respondents county-by-county.
+
+Get the total count of how many people in our survey come from the various counties of California:
 
 ```{r}
 personHHData %>% 
-  group_by(CTFIP, County) %>% #added County to this grouping so we can see the county names
-  summarise(count=n()) %>% 
-  view()
+  group_by(CTFIP, County) %>% # added County to this grouping so we can see the county names
+  summarise(count=n())
 ```
+
+We get the county-by-county means of all the variables of interest. Taking the means instead of just getting sums accounts for the fact that there are not equal amounts of people surveyed from each county. We also create a new column `count` to this dataset so we can carry over the counts of how many people were surveyed from each county.
 
 ```{r}
 prhh_aggreg <- personHHData %>% 
   group_by(County, CTFIP) %>%
   mutate(count = n()) %>% # the new column called 'count'
   summarise_at(vars(-hhid, -pnum, -bg_group), mean)
-
-View(prhh_aggreg)
 ```
+
+## Join datasets on CTFIP (county ID) variable
 
 ```{r}
 county_prhh_shp <- county_shp %>% left_join(prhh_aggreg)
-view(county_prhh_shp) # check the data to see what we get
 ```
 
-# Map of the percentage of CHTS respondents born in the USA per county.
+Newly-created `county_prhh_shp` is also an `sf` object so it has spatial attributes and can be mapped.
+
+## Map of the percentage of CHTS respondents born in the USA per county.
 
 ```{r}
 mapview(county_prhh_shp, # the dataset to use 
@@ -79,7 +100,13 @@ mapview(county_prhh_shp, # the dataset to use
         )
 ```
 
-# Group the data we have into 4 parts based on their bg_group
+Notice that the percentage of respondents who were born in the USA increases as you look at more northern counties. However, also notice that more urban counties have lower percentages, regardless of their position in the state.
+
+# Lattice of Interactive Maps
+
+## Group the data we have into 4 parts based on their bg_group
+
+4 maps for each residential location type
 
 ```{r}
 county_bg_aggreg <- personHHData %>% 
@@ -87,12 +114,12 @@ county_bg_aggreg <- personHHData %>%
   mutate(count = n()) %>% 
   summarise_at(vars(-hhid, -pnum), mean)
 
-view(county_bg_aggreg)
-
 county_bg_shp <- county_shp %>% 
   merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
   left_join(county_bg_aggreg)
 ```
+
+Sum Trips by Residential Area
 
 ```{r}
 urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
@@ -113,11 +140,51 @@ rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
 ```
 
 ```{r}
-mapview(county_prhh_shp, 
-        zcol = "Sum_PMT", 
-        legend = TRUE, 
-        label = as.character(county_prhh_shp$CTFIP), 
-        popup = leafpop::popupTable(x = county_prhh_shp, 
-                                    zcol = c("NAME", "count", "Sum_PMT"))  
-)
+latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = "all")
+```
+
+Sum PMT/Distance by Residential Area
+
+```{r}
+urban_PMTMap <- mapview(filter(county_bg_shp, bg_group == "Urban"),
+                        zcol = "Sum_PMT", legend = TRUE, popup = NULL,
+                        layer.name = "Urban PMT")
+
+suburb_PMTMap <- mapview(filter(county_bg_shp, bg_group == "Suburban"),
+                         zcol = "Sum_PMT", legend = TRUE, popup = NULL,
+                         layer.name = "Suburban PMT")
+
+exurb_PMTMap <- mapview(filter(county_bg_shp, bg_group == "Exurban"),
+                        zcol = "Sum_PMT", legend = TRUE, popup = NULL,
+                        layer.name = "Exurban PMT")
+
+rural_PMTMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
+                        zcol = "Sum_PMT", legend = TRUE, popup = NULL,
+                        layer.name = "Rural PMT")
+```
+
+```{r}
+latticeview(urban_PMTMap, suburb_PMTMap, exurb_PMTMap, rural_PMTMap, sync = "all")
+```
+
+# Static Map
+
+```{r}
+county <- ggplot2::map_data("county", region = "california") # get the CA county data
+
+county_bg <- merge(county, data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural")))
+
+county_bg_all <- county_bg_aggreg %>% 
+  mutate(subregion = tolower(County)) %>% 
+  full_join(county_bg, by = c("subregion", "bg_group"))
+```
+
+```{r}
+ggplot(county_bg_all) +
+  geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  facet_wrap(vars(bg_group), nrow = 2) +  # multi-panel plots using facet_wrap(), plot in 2 rows
+  ggtitle("Total PMT in California at County-level") + 
+  theme_void() +
+  theme(legend.position="bottom")
 ```
