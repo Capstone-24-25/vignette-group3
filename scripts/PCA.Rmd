@@ -1,0 +1,133 @@
+---
+title: "PCA"
+author: "Rebecca Chang"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# PCA
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+PersonData <- read_rds('../data/PersonData_111A.Rds')
+HHData <- read_rds('../data/HHData_111A.Rds')
+hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
+
+personHHData <- left_join(PersonData, HHData) %>%
+  left_join(hh_bgDensity)
+```
+
+```{r}
+head(personHHData)
+```
+
+```{r}
+# determine which columns are numeric
+numeric_columns <- sapply(personHHData, is.numeric)
+
+# select only numeric variables
+numeric_data <- personHHData[, numeric_columns]
+```
+
+```{r}
+# standardize data
+scaled_data <- scale(numeric_data)
+
+# remove rows with NA values
+scaled_data_clean <- na.omit(scaled_data)
+```
+
+```{r}
+variances <- apply(scaled_data_clean, 2, var, na.rm = TRUE)
+
+positive_variances <- scaled_data_clean[, variances > 0]
+positive_variances <- as.data.frame(positive_variances)
+```
+
+```{r}
+pca_result <- prcomp(positive_variances, center = TRUE, scale. = TRUE)
+
+summary(pca_result)
+
+
+explained_variance <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+cumulative_variance <- cumsum(explained_variance)
+
+print(explained_variance)
+print(cumulative_variance)
+
+
+plot(explained_variance, type = "b", xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained", main = "Scree Plot")
+abline(h = 0.1, col = "red", lty = 2)
+
+
+plot(cumulative_variance, type = "b", xlab = "Principal Component",
+     ylab = "Cumulative Variance Explained", main = "Cumulative Variance")
+```
+
+```{r}
+# set the threshold for the cumulative variance (80%)
+threshold <- 0.8
+reduced_pcs <- which(cumulative_variance >= threshold)[1]
+
+# print the number of PCs to keep
+cat("Number of PCs to retain:", reduced_pcs)
+
+```
+
+```{r}
+pca_result_reduced <- as.data.frame(pca_result$x[, 1:reduced_pcs])
+
+# extract principal component scores
+pca_result_reduced
+
+# view the first few scores
+head(pca_result_reduced)
+```
+
+```{r}
+# Plot PC1 vs PC2
+plot(pca_result_reduced$PC1, pca_result_reduced$PC2, xlab = "PC1", ylab = "PC2",
+     main = "PCA - PC1 vs PC2", pch = 19, col = "blue")
+```
+
+```{r}
+# Add the categorical variable to the PC scores
+pca_result_reduced$bg_density <- positive_variances$bg_density  # Replace with actual variable
+
+# Plot with ggplot2
+library(ggplot2)
+ggplot(pca_result_reduced, aes(x = PC1, y = PC2, color = bg_density)) +
+  geom_point() +
+  labs(title = "PCA: PC1 vs PC2 by bg_density",
+       x = "PC1", y = "PC2") +
+  theme_minimal()
+
+```
+
+## Logistic Regression
+
+```{r}
+
+```
+
+## Random Forest
+
+```{r}
+# build a classification model with random forest
+library(randomForest)
+rf_model <- randomForest(bg_density ~ ., data = pc_scores_reduced)
+print(rf_model)
+```
+
+## 
