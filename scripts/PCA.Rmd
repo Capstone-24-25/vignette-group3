@@ -114,7 +114,7 @@ singular_values <- train_svd$d
 
 variance_explained <- (singular_values^2) / sum(singular_values^2)
 
-plot(explained_variance, type = "b", xlab = "Principal Component",
+plot(variance_explained, type = "b", xlab = "Principal Component",
      ylab = "Proportion of Variance Explained", main = "Scree Plot")
 abline(h = 0.1, col = "red", lty = 2)
 
