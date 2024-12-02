@@ -38,9 +38,9 @@ Repository contents: an explanation of the directory structure of the repository
 
 -   `scripts` contains
 
-    -   `drafts` contains scratchwork files
-    -   primary vignette document
-    -   script with line annotations
+    -   `PCA` contains principal component analysis, logistic regression, and random forest
+    -   `EDA` contains exploratory data analysis of the data
+-   `vignette` contains the final vignette document
 
 ## Reference List
 
