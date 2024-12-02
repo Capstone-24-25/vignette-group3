@@ -36,11 +36,24 @@ Repository contents: an explanation of the directory structure of the repository
 
     -   `PersonData_111A.Rds` - contains cleaned per-person data, including basic demographics, employment/student status, and travel behavior variables
 
+
 -   `scripts` contains
 
     -   `PCA` contains principal component analysis, logistic regression, and random forest
+    
     -   `EDA` contains exploratory data analysis of the data
+    
+    -   a script with line annotations
+    
+    
 -   `vignette` contains the final vignette document
+
+
+-   `img` contains
+
+    - 
+
+
 
 ## Reference List
 
