@@ -1,0 +1,16 @@
+---
+title: "Household Classification in California"
+author: "Mai Uyen Huynh, Valerie De La Fuente, Rebecca Chang, Tess Ivinjack, Shirley Wang"
+date: last-modified
+published-title: "Updated"
+editor: visual
+format: html
+code-copy: true
+execute:
+  message: false
+  warning: false
+  echo: false
+  cache: true
+---
+
+
