@@ -265,6 +265,7 @@ As you can see, the low accuracy indicates that PCA might not be the best approa
 ### Step 1: Fit a RandomForest model on the PCA training data
 
 ```{r}
+set.seed(14531)
 rf_model <- randomForest(bg_group ~ ., data = reduced_training, ntree = 500, mtry = 5, importance = TRUE)
 
 ```
