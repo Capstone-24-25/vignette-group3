@@ -109,8 +109,6 @@ reproject_fn <- function(.dtm, train_projected) {
 test_projected <- reproject_fn(test_dtm, train_svd)
 ```
 
-
-
 ```{r}
 #explained variance plot
 singular_values <- train_svd$d
@@ -161,6 +159,7 @@ ggplot(plot_pca_train, aes(x = PC1, y = PC2, color = as.factor(bg_group))) +
 ## Logistic Regression
 
 Get the reduced PCA data that you will feed into logistic regression model
+
 ```{r}
 training_projected_reduced <- training_projected[, 1:reduced_pcs]
 test_projected_reduced <- test_projected[, 1:reduced_pcs]
@@ -171,11 +170,14 @@ reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_
 ```
 
 Fit logistic regression model with the PCA reduced training data
+
 ```{r}
 library(nnet)
 log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 ```
+
 Let's see how well our model was able to classify the different household densities
+
 ```{r}
 logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
