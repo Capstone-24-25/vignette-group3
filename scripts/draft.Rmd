@@ -18,6 +18,7 @@ library(dplyr)
 library(tidymodels)
 library(sparsesvd)
 library(nnet)
+library(ranger)
 ```
 
 ```{r}
