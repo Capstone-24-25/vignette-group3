@@ -183,8 +183,6 @@ logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
 ```
 
-
-
 ## Saving data
 
 ```{r}
