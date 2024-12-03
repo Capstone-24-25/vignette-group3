@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
-```{r}
+```{r, message=F, warning=F}
 # Loading necessary packages
 library(tidyverse)
 library(ggplot2)
@@ -24,11 +24,17 @@ library(dplyr)
 library(tidymodels)
 library(sparsesvd)
 library(nnet)
+library(sf)
+library(mapview)
+mapviewOptions(fgb = FALSE)
+library(leafsync)
+library(maps)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
 HHData <- read_rds('./Data/raw/HHData_111A.Rds')
 hh_bgDensity <- read_rds('./Data/raw/hh_bgDensity.Rds')
+county_shp <- st_read("./Data/raw/counties/counties.shp")
 
 # Merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
@@ -55,7 +61,18 @@ scaled_data_clean <- na.omit(scaled_data) %>%
 
 Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since our data is geographically structured, we found it helpful to visualize our data on a map.
 
-```{r}
+### Static Map
+
+```{r, message=F, warning=F}
+county_bg_aggreg <- personHHData %>% 
+  group_by(County, CTFIP, bg_group) %>%  # group by county, CTFIP, and also bg_group
+  mutate(count = n()) %>% 
+  summarise_at(vars(-hhid, -pnum), mean)
+
+county_bg_shp <- county_shp %>% 
+  merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
+  left_join(county_bg_aggreg)
+
 # get the CA county data
 county <- ggplot2::map_data("county", region = "california")
 
@@ -64,9 +81,7 @@ county_bg <- merge(county, data.frame(bg_group = c("Urban", "Suburban", "Exurban
 county_bg_all <- county_bg_aggreg %>% 
   mutate(subregion = tolower(County)) %>% 
   full_join(county_bg, by = c("subregion", "bg_group"))
-```
 
-```{r}
 ggplot(county_bg_all) +
   geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") +
   scale_fill_distiller(palette = "YlGnBu", direction = 1) +
@@ -75,6 +90,32 @@ ggplot(county_bg_all) +
   theme_void() +
   theme(legend.position="bottom")
 ```
+
+These maps show the total distance traveled by country. The grey counties represent missing data.
+
+### Sum Trips by Residential Area
+
+```{r, message=F, warning=F}
+urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
+                          zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                          layer.name = "Urban Trips")
+
+suburb_TripMap <- mapview(filter(county_bg_shp, bg_group == "Suburban"),
+                          zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                          layer.name = "Suburban Trips")
+
+exurb_TripMap <- mapview(filter(county_bg_shp, bg_group == "Exurban"),
+                         zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                         layer.name = "Exurban Trips")
+
+rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
+                         zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                         layer.name = "Rural Trips")
+
+latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = "all")
+```
+
+This visual represents the number of trips per county by household density categories (urban, suburban, exurban, and rural).
 
 ## Data Partitioning
 
@@ -102,6 +143,41 @@ train_labels <- training(partitions) %>%
 
 ## Principal Component Analysis
 
+To reduce the dimensionality of the dataset, we employ PCA.
+
+#### Step 1: Visualizing variance explained by principal components
+
+First, determine how many principal components to retain based on their respective variance.
+
+```{r}
+# Explained variance plot
+singular_values <- train_svd$d
+variance_explained <- (singular_values^2) / sum(singular_values^2)
+
+plot(variance_explained, type = "b", xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained", main = "Scree Plot")
+abline(h = 0.1, col = "red", lty = 2)
+
+# Cumulative variance plot
+cumulative_variance <- cumsum(variance_explained)
+
+plot(cumulative_variance, type = "b", xlab = "Principal Component",
+     ylab = "Cumulative Variance Explained", main = "Cumulative Variance")
+
+# Set the threshold for the cumulative variance (80%)
+threshold <- 0.8
+reduced_pcs <- which(cumulative_variance >= threshold)[1]
+
+# Print the number of PCs to keep
+cat("Number of PCs to retain:", reduced_pcs)
+
+# Plot PC1 vs PC2
+plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
+     main = "PCA - PC1 vs PC2", pch = 19, col = "blue")
+```
+
+#### Step 2: Perform PCA on training data
+
 ```{r}
 # Set seed
 set.seed(14531)
@@ -118,10 +194,13 @@ training_projected <- as.data.frame(train_svd$u %*% diag(train_svd$d))
 colnames(training_projected) <- paste0("PC", 1:ncol(training_projected))
 ```
 
+#### Step 3: Project testing data onto training PCA
+
 ```{r}
+# Set seed
 set.seed(14531)
 
-#function to reproject new data onto training PCA
+# Define function
 reproject_fn <- function(.dtm, train_projected) {
   .dtm_sparse <- as(.dtm, "sparseMatrix")
   test_projected <- as.matrix(.dtm_sparse %*% train_projected$v %*% diag(1 / train_projected$d))
@@ -129,56 +208,11 @@ reproject_fn <- function(.dtm, train_projected) {
   return(test_projected)
 }
 
-#project test data onto training PCA
+# Project
 test_projected <- reproject_fn(test_dtm, train_svd)
 ```
 
-```{r}
-#explained variance plot
-singular_values <- train_svd$d
-variance_explained <- (singular_values^2) / sum(singular_values^2)
-
-plot(variance_explained, type = "b", xlab = "Principal Component",
-     ylab = "Proportion of Variance Explained", main = "Scree Plot")
-abline(h = 0.1, col = "red", lty = 2)
-
-#cumulative variance plot
-cumulative_variance <- cumsum(variance_explained)
-
-plot(cumulative_variance, type = "b", xlab = "Principal Component",
-     ylab = "Cumulative Variance Explained", main = "Cumulative Variance")
-```
-
-```{r}
-# set the threshold for the cumulative variance (80%)
-threshold <- 0.8
-reduced_pcs <- which(cumulative_variance >= threshold)[1]
-
-# print the number of PCs to keep
-cat("Number of PCs to retain:", reduced_pcs)
-
-```
-
-```{r}
-# Plot PC1 vs PC2
-plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
-     main = "PCA - PC1 vs PC2", pch = 19, col = "blue")
-```
-
-```{r}
-# Add the categorical variable to the PC scores
-plot_pca_train <- cbind(training_projected, train_labels)  # Replace with actual variable
-
-# Plot with ggplot2
-library(ggplot2)
-ggplot(plot_pca_train, aes(x = PC1, y = PC2, color = as.factor(bg_group))) +
-  geom_point() +
-  labs(title = "PCA: PC1 vs PC2 by bg_group",
-       x = "PC1", y = "PC2") +
-  theme_minimal()+
-  scale_color_manual(values = c('green', 'blue', 'red', 'yellow'))
-
-```
+Now, the dataset has been transformed.
 
 ## Logistic Regression
 
