@@ -4,20 +4,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Primary Vignette - Classification Strategies
 
-In this vignette you\'ll learn
-
 **Objectives**
+  
+  -   Perform exploratory data analysis
+
+-   Reduce dimensionality using principal component analysis
+
+-   Employ logistic regression using `glm()` and `multinom()`
+
+-   
+  
+  We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
 ```{r}
+# Loading necessary packages
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(tidymodels)
 library(sparsesvd)
 library(nnet)
-```
 
-```{r}
 #Read in datasets
 PersonData <- read_rds('../data/PersonData_111A.Rds')
 HHData <- read_rds('../data/HHData_111A.Rds')
@@ -26,13 +33,7 @@ hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
 #merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
   left_join(hh_bgDensity)
-```
 
-```{r}
-head(personHHData)
-```
-
-```{r}
 # determine which columns are numeric
 numeric_columns <- sapply(personHHData, is.numeric)
 
@@ -41,13 +42,11 @@ numeric_data <- personHHData[, numeric_columns]
 
 #remove county FIP code, household id, and bg_density (identification and response variables)
 numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
-```
 
-```{r}
 # standardize data
 scaled_data <- scale(numeric_data)
 
-#add back in household id column and bg_group
+# add back in household id column and bg_group
 hhid <- personHHData$hhid
 bg_group <- as.factor(personHHData$bg_group)
 scaled_data <- cbind(hhid, bg_group, scaled_data)
