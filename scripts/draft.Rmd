@@ -18,6 +18,7 @@ library(dplyr)
 library(tidymodels)
 library(sparsesvd)
 library(nnet)
+library(ranger)
 ```
 
 ```{r}
@@ -223,7 +224,7 @@ rf_workflow <- workflow() %>%
 
 #set up grid to test which parameters are best for model
 rf_grid <- grid_regular(mtry(range = c(1, 6)), 
-                        trees(range = c(200, 600)),
+                        trees(range = c(75, 300)),
                         min_n(range = c(10, 20)),
                         levels = 5)
 #fit random forest models
