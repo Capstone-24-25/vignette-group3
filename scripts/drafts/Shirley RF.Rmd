@@ -4,8 +4,15 @@ library(randomForest)
 ```
 
 ```{r}
+#read data files
+PersonData <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/raw/PersonData_111A.Rds')
+HHData <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/raw/HHData_111A.Rds')
+hh_bgDensity <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/raw/hh_bgDensity.Rds')
+```
+
+```{r}
 #retain only the numerical variables in personHHData
-personHHData <- personHHData %>% 
+personHHData <- PersonData %>% 
   select(where(is.numeric))
 
 hh_bgDensity <- hh_bgDensity %>% 
@@ -14,17 +21,139 @@ hh_bgDensity <- hh_bgDensity %>%
 #combine two data set by hhid
 combined_data <- merge(hh_bgDensity, personHHData, by = 'hhid')
 
+combined_data <- na.omit(combined_data)
+combined_data$bggroup <- as.factor(combined_data$bg_group)
 nrow(combined_data)
 ```
-
 ```{r}
-#Convert bggroup to a factor
-combined_data$bggroup <- as.factor(combined_data$bg_group)
+library(tidymodels)
+
+# Set seed for reproducibility
+set.seed(14531)
+
+# Split the dataset
+partitions <- initial_split(combined_data, prop = 0.8)
+
+# Create training and testing datasets
+train_data <- training(partitions)
+test_data <- testing(partitions)
+
+# Remove unnecessary columns for training
+train_dtm <- train_data %>% select(-hhid, -bg_group)
+train_labels <- train_data %>% select(hhid, bg_group)
+
+test_dtm <- test_data %>% select(-hhid, -bg_group)
+test_labels <- test_data %>% select(hhid, bg_group)
+
+# Specify the random forest model
+rf_spec <- rand_forest(
+  mtry = tune(),
+  trees = tune(),
+  min_n = tune()
+) %>% 
+  set_engine("randomForest") %>% 
+  set_mode("classification")
+
+# Define a workflow
+rf_workflow <- workflow() %>% 
+  add_model(rf_spec) %>% 
+  add_formula(bggroup ~ .)
+
+# Set up cross-validation
+set.seed(14531)
+train_folds <- vfold_cv(train_data, v = 5)
+
+# Set up a grid to test parameter combinations
+rf_grid <- grid_regular(
+  mtry(range = c(1, 6)), 
+  trees(range = c(75, 300)),
+  min_n(range = c(10, 20)),
+  levels = 5
+)
+
+# Tune the model
+tune_results <- tune_grid(
+  rf_workflow,
+  resamples = train_folds,
+  grid = rf_grid
+)
+
+# Extract the best parameters
+best_params <- select_best(tune_results, metric = "accuracy")
+print(best_params)
+
+# Finalize the workflow with the best parameters
+final_rf <- finalize_workflow(rf_workflow, best_params)
+
+# Train the final model on the entire training data
+final_rf_fit <- fit(final_rf, data = train_data)
+
+# Evaluate the model on the test data
+predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
+
+# Confusion matrix
+confusion_matrix <- predictions %>% 
+  conf_mat(truth = bggroup, estimate = .pred_class)
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- predictions %>% 
+  metrics(truth = bggroup, estimate = .pred_class) %>% 
+  filter(.metric == "accuracy")
+print(accuracy)
 ```
+
+
 
 ```{r}
 #split data into training and test data set
-set.seed(23541)
+set.seed(14531)
+partitions <- combined_data %>% 
+  initial_split(prop = 0.8)
+
+train_dtm <- training(partitions) %>% select(-hhid, -bg_group)
+train_labels <- training(partitions) %>% select(hhid, bg_group)
+
+test_dtm <- testing(partitions) %>% select(-hhid, -bg_group)
+test_labels <- testing(partitions) %>% select(hhid, bg_group)
+```
+
+```{r}
+rf_model <- randomForest(bggroup ~ ., data = train_dtm, ntree = 500, mtry = 3, importance = TRUE)
+print(rf_model)
+```
+
+```{r}
+# Evaluate the model
+predictions <- predict(rf_model, newdata = test_dtm)
+```
+
+```{r}
+# Create a confusion matrix
+confusion_matrix <- table(Predicted = predictions, Actual = test_labels$bg_group)
+print(confusion_matrix)
+
+# Calculate and print accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", round(accuracy, 2)))
+```
+
+```{r}
+# Plot variable importance
+varImpPlot(rf_model)
+
+# View importance scores
+importance(rf_model)
+```
+
+
+
+
+
+
+
+
+```{r}
 train_indices <- sample(1:nrow(combined_data), 0.7 * nrow(combined_data))
 train_data <- combined_data[train_indices, ]
 test_data <- combined_data[-train_indices, ]
