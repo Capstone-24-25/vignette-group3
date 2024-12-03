@@ -183,13 +183,11 @@ logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
 ```
 
-## Random Forest
+
+
+## Saving data
 
 ```{r}
-# build a classification model with random forest
-library(randomForest)
-rf_model <- randomForest(bg_group ~ ., data = training_projected)
-print(rf_model)
+saveRDS(training_projected, "../data/training_projected.Rds")
+saveRDS(test_projected, "../data/test_projected.Rds")
 ```
-
-## 
