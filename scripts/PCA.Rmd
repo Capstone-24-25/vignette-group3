@@ -188,6 +188,7 @@ logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 ## Saving data
 
 ```{r}
-saveRDS(training_projected, "../data/training_projected.Rds")
-saveRDS(test_projected, "../data/test_projected.Rds")
+save(training_projected, file ="../Data/training_projected.RData")
+save(test_projected, file = "../Data/test_projected.RData")
+
 ```
