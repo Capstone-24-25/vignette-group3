@@ -1,6 +1,7 @@
 
 # Commented Vignette Script
 
+# Loading necessary packages
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
@@ -13,37 +14,38 @@ PersonData <- read_rds('../data/PersonData_111A.Rds')
 HHData <- read_rds('../data/HHData_111A.Rds')
 hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
 
-#merge datasets
+# Merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
   left_join(hh_bgDensity)
 
-# determine which columns are numeric
+# Determine which columns are numeric
 numeric_columns <- sapply(personHHData, is.numeric)
 
-# select only numeric variables
+# Select only numeric variables
 numeric_data <- personHHData[, numeric_columns]
 
-#remove county FIP code, household id, and bg_density (identification and response variables)
+# Remove county FIP code, household id, and bg_density (identification and response variables)
 numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
 
-# standardize data
+# Standardize data
 scaled_data <- scale(numeric_data)
 
-# add back in household id column and bg_group
+# Add back in household id column and bg_group
 hhid <- personHHData$hhid
 bg_group <- as.factor(personHHData$bg_group)
 scaled_data <- cbind(hhid, bg_group, scaled_data)
 
-# remove rows with NA values
+# Remove rows with NA values
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame()
 
-#partition data
+
+# Partition data
 set.seed(14531)
 partitions <- scaled_data_clean %>% 
   initial_split(prop = 0.8)
 
-#separate id and response variable in testing and training data
+# Separate id and response variable in testing and training data
 test_dtm <- testing(partitions) %>% 
   select(-hhid, -bg_group)
 test_labels <- testing(partitions) %>% 
