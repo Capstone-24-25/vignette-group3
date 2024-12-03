@@ -53,6 +53,29 @@ scaled_data_clean <- na.omit(scaled_data) %>%
 
 ## Exploratory Data Analysis
 
+Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since our data is geographically structured, we found it helpful to visualize our data on a map.
+
+```{r}
+# get the CA county data
+county <- ggplot2::map_data("county", region = "california")
+
+county_bg <- merge(county, data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural")))
+
+county_bg_all <- county_bg_aggreg %>% 
+  mutate(subregion = tolower(County)) %>% 
+  full_join(county_bg, by = c("subregion", "bg_group"))
+```
+
+```{r}
+ggplot(county_bg_all) +
+  geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  facet_wrap(vars(bg_group), nrow = 2) +  # multi-panel plots using facet_wrap(), plot in 2 rows
+  ggtitle("Total PMT in California at County-level") + 
+  theme_void() +
+  theme(legend.position="bottom")
+```
+
 ## Data Partitioning
 
 Before fitting models, it is imperative to split our data into a training set and a testing set. We will use the training set to train our models. Once our models are trained, we will fit the best model to the testing set and see how it truly performs. We are employing the 80/20 split, where 80% of the data goes to the training data and 30% of the data goes to the testing data. This ensures that there is data to both train our models and properly test model performance. `set.seed()` is used to ensure reproducibility of our findings.
