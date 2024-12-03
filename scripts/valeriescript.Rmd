@@ -1,0 +1,3 @@
+Methodology
+
+While working with a dataset with a large amount of predictors and observations, it is imperative to reduce the dimensionality of the data while retaining it's variability. In order to do so, we are employing principal component analysis on our merged dataset, `personHHData`. With the dataset now reduced, we employ two methods to predict categorical outcomes: a logistic regression model and a random forest model. Finally, we compare the results and see which model performed best.
