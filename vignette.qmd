@@ -254,3 +254,5 @@ conf_matrix <- table(Predicted = logreg_test_predictions, Actual = reduced_testi
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
 print(paste("Accuracy:", round(accuracy, 4)))
 ```
+
+As you can see, the low accuracy indicates that PCA might not be the best approach for the logistic regression model.
