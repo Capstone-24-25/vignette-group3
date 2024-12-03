@@ -31,6 +31,7 @@ library(leafsync)
 library(maps)
 library(nnet)
 library(randomForest)
+library(vip)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
