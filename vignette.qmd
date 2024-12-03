@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   Employ logistic regression using `glm()` and `multinom()`
 
--   
+-   Building a random forest model using `randomForest()`
 
 We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
@@ -30,6 +30,7 @@ mapviewOptions(fgb = FALSE)
 library(leafsync)
 library(maps)
 library(nnet)
+library(randomForest)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
@@ -51,11 +52,13 @@ numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
 scaled_data <- scale(numeric_data)
 
 hhid <- personHHData$hhid
-bg_group <- as.factor(personHHData$bg_group)
+bg_group <- personHHData$bg_group
 scaled_data <- cbind(hhid, bg_group, scaled_data)
 
 scaled_data_clean <- na.omit(scaled_data) %>% 
-  as.data.frame()
+  as.data.frame() %>% 
+  mutate(bg_group = as.factor(bg_group))
+
 ```
 
 ## Exploratory Data Analysis
@@ -256,3 +259,57 @@ print(paste("Accuracy:", round(accuracy, 4)))
 ```
 
 As you can see, the low accuracy indicates that PCA might not be the best approach for the logistic regression model.
+
+## Random Forest
+
+### Step 1: Set up the data for RandomForest modelling
+
+For the `randomForest()` function, create dataframes that has all predictive variables, using data from before the PCA, and include response variable `bg_group`.
+
+```{r}
+#training
+training <- training(partitions) %>% select(-hhid)
+
+#testing
+testing <- testing(partitions) %>% select(-hhid)
+```
+
+### Step 2: Fit Random Forest model with training data
+
+Fit Random Forest model on training data using 300 trees, 20 predictor variables randomly selected at each tree split, and making sure variable importance is being calculated.
+
+```{r}
+set.seed(14531)
+rf_model <- randomForest(bg_group ~ ., data = training, ntree = 300, mtry = 20, importance = TRUE)
+
+```
+
+### Step 3: Accuracy Measures
+
+Lastly, look at the confusion matrix for the Random Forest model and calculate the accuracy to see how well the model performed.
+
+```{r}
+#Evaluate the Model
+predictions <- predict(rf_model, newdata = testing)
+
+#confusion matrix
+confusion_matrix <- table(Predicted = predictions, Actual = reduced_testing$bg_group)
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", round(accuracy, 4)))
+```
+
+With an accuracy of 0.4058, the model performed better than the logistic regression with PCA.
+
+### Step 4: Variable Importance
+
+We can also take a look at which variables were most important in explaining the variation in the `bg_group` variation. The household home type was the most important, followed by the number of public transit riders in the household and the number of walking trips taken the week of the survey.
+
+```{r}
+# Plot variable importance with top 10 important variables
+rf_models %>% 
+  vip() +
+  theme_minimal()
+```
