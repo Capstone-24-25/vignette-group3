@@ -244,6 +244,8 @@ logreg_test_predictions <- predict(log_regmodel, newdata = reduced_testing)
 
 ### Step 3: Accuracy measures
 
+Finally, look at the accuracy of the logistic regression model by summing across the diagonal of the confusion matrix.
+
 ```{r}
 # Create a confusion matrix
 conf_matrix <- table(Predicted = logreg_test_predictions, Actual = reduced_testing$bg_group)
@@ -251,9 +253,4 @@ conf_matrix <- table(Predicted = logreg_test_predictions, Actual = reduced_testi
 # Calculate overall accuracy
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
 print(paste("Accuracy:", round(accuracy, 4)))
-
-# Optional: Calculate additional metrics like precision, recall, and F1-score for each class
-library(caret)
-confusionMatrix(as.factor(logreg_test_predictions), as.factor(reduced_testing$bg_group))
-
 ```
