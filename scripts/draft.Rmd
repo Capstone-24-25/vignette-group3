@@ -18,6 +18,7 @@ library(dplyr)
 library(tidymodels)
 library(sparsesvd)
 library(nnet)
+library(ranger)
 ```
 
 ```{r}
@@ -52,12 +53,15 @@ scaled_data <- scale(numeric_data)
 
 #add back in household id column and bg_group
 hhid <- personHHData$hhid
-bg_group <- as.factor(personHHData$bg_group)
+bg_group <- personHHData$bg_group
 scaled_data <- cbind(hhid, bg_group, scaled_data)
 
 # remove rows with NA values
 scaled_data_clean <- na.omit(scaled_data) %>% 
-  as.data.frame()
+  as.data.frame() %>% 
+  mutate(bg_group = as.factor(bg_group))
+
+
 
 ```
 
@@ -147,7 +151,7 @@ plot_pca_train <- cbind(training_projected, train_labels)  # Replace with actual
 
 # Plot with ggplot2
 library(ggplot2)
-ggplot(plot_pca_train, aes(x = PC1, y = PC2, color = as.factor(bg_group))) +
+ggplot(plot_pca_train, aes(x = PC1, y = PC2, color = bg_group)) +
   geom_point() +
   labs(title = "PCA: PC1 vs PC2 by bg_group",
        x = "PC1", y = "PC2") +
@@ -183,10 +187,53 @@ logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
 ```
 
-## Saving data
+
+
+#Random Forest
+```{r}
+train_x <- as.data.frame(training_projected)
+test_x <- as.data.frame(test_projected)
+train_y <- as.data.frame(train_labels)
+test_y <- as.data.frame(test_labels)
+```
 
 ```{r}
-save(training_projected, file ="../Data/training_projected.RData")
-save(test_projected, file = "../Data/test_projected.RData")
+#random forest
+set.seed(23541)
+#merge training x and y into one dataframe
+training <- merge.data.frame(train_x, train_y) 
+
+#cross-validation
+train_folds <- vfold_cv(training, v = 5, strata = "bg_group")
+
+#set up recipe
+train_recipe <- recipe(bg_group ~ ., data = training) %>% 
+  step_rm(hhid)
+
+#set up model
+rf_model <- rand_forest(mtry = tune(), 
+                           trees = tune(), 
+                           min_n = tune()) %>%
+  set_engine("ranger") %>% 
+  set_mode("classification")
+
+#set up workflow
+rf_workflow <- workflow() %>% 
+  add_model(rf_model) %>% 
+  add_recipe(train_recipe)
+
+#set up grid to test which parameters are best for model
+rf_grid <- grid_regular(mtry(range = c(1, 6)), 
+                        trees(range = c(75, 300)),
+                        min_n(range = c(10, 20)),
+                        levels = 5)
+#fit random forest models
+tune_class <- tune_grid(
+  rf_workflow,
+  resamples = train_folds,
+  grid = rf_grid
+)
+
+
 
 ```
