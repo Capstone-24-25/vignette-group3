@@ -25,37 +25,38 @@ library(tidymodels)
 library(sparsesvd)
 library(nnet)
 
-#Read in datasets
+# Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
 HHData <- read_rds('./Data/raw/HHData_111A.Rds')
 hh_bgDensity <- read_rds('./Data/raw/hh_bgDensity.Rds')
 
-#merge datasets
+# Merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
   left_join(hh_bgDensity)
 
-# determine which columns are numeric
+# Preprocess data
 numeric_columns <- sapply(personHHData, is.numeric)
 
-# select only numeric variables
 numeric_data <- personHHData[, numeric_columns]
 
-#remove county FIP code, household id, and bg_density (identification and response variables)
 numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
 
-# standardize data
 scaled_data <- scale(numeric_data)
 
-# add back in household id column and bg_group
 hhid <- personHHData$hhid
 bg_group <- as.factor(personHHData$bg_group)
 scaled_data <- cbind(hhid, bg_group, scaled_data)
 
-# remove rows with NA values
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame()
 
 ```
+
+## Data Partitioning
+
+Before fitting models, it is imperative to split our data into a training set and a testing set. We will use the training set to train our models. Once our models are trained, we will fit the best model to the testing set and see how it truly performs. We are employing the 80/20 split, where 80% of the data goes to the training data and 30% of the data goes to the testing data. This ensures that there is data to both train our models and properly test model performance.
+
+`set.seed()`
 
 ```{r}
 #partition data
@@ -175,14 +176,5 @@ log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 Let's see how well our model was able to classify the different household densities
 
 ```{r}
-logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
-
-```
-
-## Saving data
-
-```{r}
-save(training_projected, file ="../Data/training_projected.RData")
-save(test_projected, file = "../Data/test_projected.RData")
-
+logreg_test_predictions <- predict(log_regmodel, newdata = reduced_testing)
 ```
