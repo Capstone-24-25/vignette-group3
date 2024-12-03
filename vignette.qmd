@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   Employ logistic regression using `glm()` and `multinom()`
 
--   
+-   Building a random forest model using `randomForest()`
 
 We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
@@ -30,6 +30,7 @@ mapviewOptions(fgb = FALSE)
 library(leafsync)
 library(maps)
 library(nnet)
+library(randomForest)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
@@ -51,11 +52,13 @@ numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
 scaled_data <- scale(numeric_data)
 
 hhid <- personHHData$hhid
-bg_group <- as.factor(personHHData$bg_group)
+bg_group <- personHHData$bg_group
 scaled_data <- cbind(hhid, bg_group, scaled_data)
 
 scaled_data_clean <- na.omit(scaled_data) %>% 
-  as.data.frame()
+  as.data.frame() %>% 
+  mutate(bg_group = as.factor(bg_group))
+
 ```
 
 ## Exploratory Data Analysis
@@ -256,3 +259,27 @@ print(paste("Accuracy:", round(accuracy, 4)))
 ```
 
 As you can see, the low accuracy indicates that PCA might not be the best approach for the logistic regression model.
+
+## Random Forest
+
+### Step 1: Fit a RandomForest model on the PCA training data
+
+```{r}
+rf_model <- randomForest(bg_group ~ ., data = reduced_training, ntree = 500, mtry = 5, importance = TRUE)
+
+```
+
+### Step 2:
+
+```{r}
+#Evaluate the Model
+predictions <- predict(rf_model, newdata = reduced_testing)
+
+#confusion matrix
+confusion_matrix <- table(Predicted = predictions, Actual = reduced_testing$bg_group)
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", round(accuracy, 4)))
+```

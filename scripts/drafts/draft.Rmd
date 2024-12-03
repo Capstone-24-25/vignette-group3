@@ -19,13 +19,14 @@ library(tidymodels)
 library(sparsesvd)
 library(nnet)
 library(ranger)
+library(yardstick)
 ```
 
 ```{r}
 #Read in datasets
-PersonData <- read_rds('../data/PersonData_111A.Rds')
-HHData <- read_rds('../data/HHData_111A.Rds')
-hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
+PersonData <- read_rds('../../Data/raw/PersonData_111A.Rds')
+HHData <- read_rds('../../Data/raw/HHData_111A.Rds')
+hh_bgDensity <- read_rds('../../Data/raw/hh_bgDensity.Rds')
 
 #merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
@@ -194,14 +195,13 @@ Let's see how well our model was able to classify the different household densit
 set.seed(23541)
 
 #merge training x and y into one dataframe
-training <- cbind(training_projected, train_labels) 
+training <- training(partitions) %>% select(-hhid)
 
 #cross-validation
 train_folds <- vfold_cv(training, v = 5, strata = "bg_group")
 
 #set up recipe
-train_recipe <- recipe(bg_group ~ ., data = training) %>% 
-  step_rm(hhid)
+train_recipe <- recipe(bg_group ~ ., data = training) 
 
 #set up model
 rf_model <- rand_forest(mtry = tune(), 
@@ -216,10 +216,10 @@ rf_workflow <- workflow() %>%
   add_recipe(train_recipe)
 
 #set up grid to test which parameters are best for model
-rf_grid <- grid_regular(mtry(range = c(1, 6)), 
-                        trees(range = c(75, 300)),
+rf_grid <- grid_regular(mtry(range = c(5, 59)), 
+                        trees(range = c(200, 600)),
                         min_n(range = c(10, 20)),
-                        levels = 5)
+                        levels = 10)
 
 #fit random forest models, tuning parameters
 tune_class <- tune_grid(
@@ -235,11 +235,12 @@ save(tune_class, file = "tune_class.rda")
 Graph model performances of different model parameters
 ```{r}
 load("tune_class.rda")
-autoplot(tune_class)
+autoplot(tune_class) + theme_minimal()
 ```
 Select optimal random forest model by ROC AUC
 ```{r}
-best_rf <- select_best(tune_class, "roc_auc")
+best_rf <- select_best(tune_class, metric = 'roc_auc')
+best_rf
 ```
 Finalize model
 ```{r}
@@ -248,18 +249,17 @@ final_rf_model <- fit(fit_rf_best, training)
 ```
 Predict with test data
 ```{r}
-testing <- merge.data.frame(test_projected, test_labels)
-predictions <- augment(final_rf_model, testing) %>% 
-  select(bg_group, starts_with(".pred"))
+testing <- testing(partitions) %>% select(-hhid)
+#Evaluate the Model
+predictions <- predict(final_rf_model, new_data = testing)
 
-class_metrics <- metric_set(sensitivity, 
-                            specificity, 
-                            accuracy,
-                            roc_auc)
+#confusion matrix
+confusion_matrix <- table(Predicted = predictions$.pred_class, Actual = testing$bg_group)
+print(confusion_matrix)
 
-# Calculate metrics
-rf_metrics <- predictions %>% class_metrics(truth = bg_class, 
-                  estimate = .pred, 
-                  pred, 
-                  event_level = 'second')
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", round(accuracy, 4)))
+
+##with PCA data: accuracy = 0.25
 ```
