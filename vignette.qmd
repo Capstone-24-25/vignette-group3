@@ -26,9 +26,9 @@ library(sparsesvd)
 library(nnet)
 
 #Read in datasets
-PersonData <- read_rds('../Data/raw/PersonData_111A.Rds')
-HHData <- read_rds('../Data/raw/HHData_111A.Rds')
-hh_bgDensity <- read_rds('../Data/raw/hh_bgDensity.Rds')
+PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
+HHData <- read_rds('./Data/raw/HHData_111A.Rds')
+hh_bgDensity <- read_rds('./Data/raw/hh_bgDensity.Rds')
 
 #merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
