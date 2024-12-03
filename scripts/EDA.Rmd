@@ -96,7 +96,7 @@ mapview(county_prhh_shp, # the dataset to use
         zcol = "bornUSA", # tells it which column to map
         legend = TRUE, # if FALSE, it won't show the legend 
         label = as.character(county_prhh_shp$NAME), # tells it the column whose value you want to appear when you hover over a shape with your mouse
-        popup = leafpop::popupTable(x = county_prhh_shp, zcol = c("bornUSA", "count"))  # determines what is included in the popup window when you click on a shape
+        popup = leafpop::popupTable(x = county_prhh_shp, zcol = c("count"))  # determines what is included in the popup window when you click on a shape
         )
 ```
 
