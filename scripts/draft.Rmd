@@ -183,7 +183,7 @@ log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 Let's see how well our model was able to classify the different household densities
 
 ```{r}
-logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
+#logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
 ```
 
@@ -191,17 +191,10 @@ logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
 #Random Forest
 ```{r}
-train_x <- as.data.frame(training_projected)
-test_x <- as.data.frame(test_projected)
-train_y <- as.data.frame(train_labels)
-test_y <- as.data.frame(test_labels)
-```
-
-```{r}
-#random forest
 set.seed(23541)
+
 #merge training x and y into one dataframe
-training <- merge.data.frame(train_x, train_y) 
+training <- cbind(training_projected, train_labels) 
 
 #cross-validation
 train_folds <- vfold_cv(training, v = 5, strata = "bg_group")
@@ -227,13 +220,46 @@ rf_grid <- grid_regular(mtry(range = c(1, 6)),
                         trees(range = c(75, 300)),
                         min_n(range = c(10, 20)),
                         levels = 5)
-#fit random forest models
+
+#fit random forest models, tuning parameters
 tune_class <- tune_grid(
   rf_workflow,
   resamples = train_folds,
   grid = rf_grid
 )
 
+save(tune_class, file = "tune_class.rda")
 
+```
 
+Graph model performances of different model parameters
+```{r}
+load("tune_class.rda")
+autoplot(tune_class)
+```
+Select optimal random forest model by ROC AUC
+```{r}
+best_rf <- select_best(tune_class, "roc_auc")
+```
+Finalize model
+```{r}
+fit_rf_best <- finalize_workflow(rf_workflow, best_rf)
+final_rf_model <- fit(fit_rf_best, training)
+```
+Predict with test data
+```{r}
+testing <- merge.data.frame(test_projected, test_labels)
+predictions <- augment(final_rf_model, testing) %>% 
+  select(bg_group, starts_with(".pred"))
+
+class_metrics <- metric_set(sensitivity, 
+                            specificity, 
+                            accuracy,
+                            roc_auc)
+
+# Calculate metrics
+rf_metrics <- predictions %>% class_metrics(truth = bg_class, 
+                  estimate = .pred, 
+                  pred, 
+                  event_level = 'second')
 ```
