@@ -29,6 +29,7 @@ library(mapview)
 mapviewOptions(fgb = FALSE)
 library(leafsync)
 library(maps)
+library(nnet)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
@@ -216,7 +217,9 @@ Now, the dataset has been transformed.
 
 ## Logistic Regression
 
-Get the reduced PCA data that you will feed into logistic regression model
+Now that we have reduced the dimensionality of the dataset, we can feed the transformed data into the logistic regression model.
+
+### Step 1: Get the reduced PCA data that you will feed into logistic regression model
 
 ```{r}
 training_projected_reduced <- training_projected[, 1:reduced_pcs]
@@ -227,10 +230,9 @@ reduced_training <- cbind(training_projected_reduced, bg_group = train_labels$bg
 reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_labels$bg_group)
 ```
 
-Fit logistic regression model with the PCA reduced training data
+### Step 2: Fit logistic regression model with the PCA reduced training data
 
 ```{r}
-library(nnet)
 log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 ```
 
@@ -238,4 +240,20 @@ Let's see how well our model was able to classify the different household densit
 
 ```{r}
 logreg_test_predictions <- predict(log_regmodel, newdata = reduced_testing)
+```
+
+### Step 3: Accuracy measures
+
+```{r}
+# Create a confusion matrix
+conf_matrix <- table(Predicted = logreg_test_predictions, Actual = reduced_testing$bg_group)
+
+# Calculate overall accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy:", round(accuracy, 4)))
+
+# Optional: Calculate additional metrics like precision, recall, and F1-score for each class
+library(caret)
+confusionMatrix(as.factor(logreg_test_predictions), as.factor(reduced_testing$bg_group))
+
 ```
