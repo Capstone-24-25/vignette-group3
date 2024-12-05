@@ -88,12 +88,12 @@ numeric_columns <- sapply(data, is.numeric)
 
 numeric_data <- data[, numeric_columns]
 
-numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
+numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
 
 scaled_data <- scale(numeric_data)
 
-hhid <- personHHData$hhid
-bg_group <- personHHData$bg_group
+hhid <- data$hhid
+bg_group <- data$bg_group
 scaled_data <- cbind(hhid, bg_group, scaled_data)
 
 scaled_data_clean <- na.omit(scaled_data) %>% 
