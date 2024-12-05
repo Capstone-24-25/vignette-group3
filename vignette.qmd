@@ -100,8 +100,6 @@ scaled_data <- cbind(hhid, bg_group, scaled_data)
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame() %>% 
   select(-pnum)
-
-
 ```
 
 ## Exploratory Data Analysis
@@ -309,7 +307,177 @@ print(paste("Accuracy:", round(accuracy, 4)))
 
 As you can see, the low accuracy indicates that PCA might not be the best approach for the logistic regression model.
 
+
+
 ## Random Forest
+```{r}
+#import data
+PersonData <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/raw/PersonData_111A.Rds')
+HHData <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/raw/HHData_111A.Rds')
+hh_bgDensity <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/raw/hh_bgDensity.Rds')
+```
+
+```{r}
+personHHData <- left_join(PersonData, HHData)
+
+#preprocessing
+data <- personHHData  %>% 
+  filter(WorkDaysWk != 8 , WorkDaysWk !=9,
+         TypicalHoursWk != 998, TypicalHoursWk!= 999,
+         TransitTripsWk != 98, TransitTripsWk != 99,
+         WalkTripsWk != 98, WalkTripsWk != 99,
+         BikeTripsWk != 98, BikeTripsWk != 99) %>% 
+  mutate(HH_anyTransitRider = as.factor(HH_anyTransitRider),
+         HH_homeType = as.factor(HH_homeType),
+         HH_homeowner = as.factor(HH_homeowner),
+         HH_isHispanic = as.factor(HH_isHispanic),
+         HH_intEnglish = as.factor(HH_intEnglish),
+         HH_income = as.factor(HH_income),
+         Male = as.factor(Male),
+         persHisp = as.factor(persHisp),
+         persAfricanAm = as.factor(persAfricanAm),
+         persNativeAm = as.factor(persNativeAm),
+         persAsian = as.factor(persAsian),
+         persPacIsl = as.factor(persPacIsl),
+         persOthr = as.factor(persOthr),
+         persDKrace = as.factor(persDKrace),
+         persRFrace = as.factor(persRFrace),
+         bornUSA = as.factor(bornUSA),
+         DriverLic = as.factor(DriverLic),
+         TransitPass = as.factor(TransitPass),
+         Employed = as.factor(Employed),
+         WorkFixedLoc = as.factor(WorkFixedLoc),
+         WorkHome =as.factor(WorkHome),
+         WorkNonfixed = as.factor(WorkNonfixed),
+         FlexSched = as.factor(FlexSched),
+         FlexPrograms = as.factor(FlexPrograms),
+         Disability = as.factor(Disability),
+         DisLicensePlt = as.factor(DisLicensePlt),
+         Student = as.factor(Student),
+         workday = as.factor(workday),
+         bg_group = as.factor(bg_group),
+         hhid = paste(hhid, pnum),
+         SchoolMode = as.factor(SchoolMode),
+         WorkMode = as.factor(WorkMode),
+         EducationCompl = as.factor(EducationCompl))
+
+hh_bgDensity <- hh_bgDensity %>% 
+  select(-bg_density)
+
+#combine two data set by hhid
+combined_data <- merge(hh_bgDensity, data, by = 'hhid')
+
+combined_data <- na.omit(combined_data)
+combined_data$bggroup <- as.factor(combined_data$bg_group)
+nrow(combined_data)
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(14531)
+
+# Split the dataset
+partitions <- initial_split(data, prop = 0.8)
+
+# Create training and testing datasets
+train_data <- training(partitions)
+test_data <- testing(partitions)
+
+# Remove unnecessary columns for training
+train_dtm <- train_data %>% select(-hhid, -bg_group)
+train_labels <- train_data %>% select(hhid, bg_group)
+
+test_dtm <- test_data %>% select(-hhid, -bg_group)
+test_labels <- test_data %>% select(hhid, bg_group)
+
+# Specify the random forest model
+rf_spec <- rand_forest(
+  mtry = tune(),
+  trees = tune(),
+  min_n = tune()
+) %>% 
+  set_engine("randomForest") %>% 
+  set_mode("classification")
+
+# Define a workflow
+rf_workflow <- workflow() %>% 
+  add_model(rf_spec) %>% 
+  add_formula(bggroup ~ .)
+
+# Set up cross-validation
+set.seed(14531)
+train_folds <- vfold_cv(train_data, v = 5)
+
+# Set up a grid to test parameter combinations
+rf_grid <- grid_regular(
+  mtry(range = c(1, 6)), 
+  trees(range = c(75, 300)),
+  min_n(range = c(10, 20)),
+  levels = 5
+)
+
+# Tune the model
+tune_results <- tune_grid(
+  rf_workflow,
+  resamples = train_folds,
+  grid = rf_grid
+)
+
+# Extract the best parameters
+best_params <- select_best(tune_results, metric = "accuracy")
+print(best_params)
+
+# Finalize the workflow with the best parameters
+final_rf <- finalize_workflow(rf_workflow, best_params)
+
+# Train the final model on the entire training data
+final_rf_fit <- fit(final_rf, data = train_data)
+
+# Evaluate the model on the test data
+predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
+
+# Confusion matrix
+confusion_matrix <- predictions %>% 
+  conf_mat(truth = bggroup, estimate = .pred_class)
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- predictions %>% 
+  metrics(truth = bggroup, estimate = .pred_class) %>% 
+  filter(.metric == "accuracy")
+print(accuracy)
+```
+
+
+
+```{r}
+#split data into training and test data set
+set.seed(14531)
+partitions <- combined_data %>% 
+  initial_split(prop = 0.8)
+
+train_dtm <- training(partitions) %>% select(-hhid, -bg_group)
+train_labels <- training(partitions) %>% select(hhid, bg_group)
+
+test_dtm <- testing(partitions) %>% select(-hhid, -bg_group)
+test_labels <- testing(partitions) %>% select(hhid, bg_group)
+```
+
+```{r}
+rf_model <- randomForest(bggroup ~ ., data = train_dtm, ntree = 500, mtry = 3, importance = TRUE)
+print(rf_model)
+```
+
+```{r}
+# Evaluate the model
+predictions <- predict(rf_model, newdata = test_dtm)
+```
+
+
+
+
+
+
 
 ### Step 1: Set up the data for RandomForest modelling
 
