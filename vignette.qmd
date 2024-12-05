@@ -166,7 +166,7 @@ This visual represents the number of trips per county by household density categ
 
 ## Data Partitioning
 
-Before fitting models, it is imperative to split our data into a training set and a testing set. We will use the training set to train our models. Once our models are trained, we will fit the best model to the testing set and see how it truly performs. We are employing the 80/20 split, where 80% of the data goes to the training data and 30% of the data goes to the testing data. This ensures that there is data to both train our models and properly test model performance. `set.seed()` is used to ensure reproducibility of our findings.
+Before fitting models, it is imperative to split our data into a training set and a testing set. We will use the training set to train our models. Once our models are trained, we will fit the best model to the testing set and see how it truly performs. We are employing the 80/20 split, where 80% of the data goes to the training data and 20% of the data goes to the testing data. This ensures that there is data to both train our models and properly test model performance. `set.seed()` is used to ensure reproducibility of our findings.
 
 ```{r}
 # Set seed
@@ -177,15 +177,16 @@ partitions <- scaled_data_clean %>%
   initial_split(prop = 0.8)
 
 # Separate id and response variable in testing and training data
-test_dtm <- testing(partitions) %>% 
+test_features <- testing(partitions) %>% 
   select(-hhid, -bg_group)
 test_labels <- testing(partitions) %>% 
   select(hhid, bg_group)
 
-train_dtm <- training(partitions) %>% 
+train_features <- training(partitions) %>% 
   select(-hhid, -bg_group)
 train_labels <- training(partitions) %>%
   select(hhid, bg_group)
+
 ```
 
 ## Principal Component Analysis
@@ -194,16 +195,17 @@ To reduce the dimensionality of the dataset, we employ PCA.
 
 #### Step 1: Perform PCA on training data
 
+
 ```{r}
 # Set seed
 set.seed(14531)
 
 # Convert training data to sparse matrix to use sparsesvd function to perform PCA
-train_dtm_sparse <- as.matrix(train_dtm) %>% 
+train_features_sparse <- train_features %>% 
   as("sparseMatrix")
 
 # Perform PCA on sparse training data matrix and turn into dataframe
-train_svd <- sparsesvd(train_dtm_sparse, rank = 18)
+train_svd <- sparsesvd(train_features_sparse, rank = 18)
 training_projected <- as.data.frame(train_svd$u %*% diag(train_svd$d))
 
 # Assign column names
@@ -256,7 +258,7 @@ reproject_fn <- function(.dtm, train_projected) {
 }
 
 # Project
-test_projected <- reproject_fn(test_dtm, train_svd)
+test_projected <- reproject_fn(test_features, train_svd)
 ```
 
 Now, the dataset has been transformed.
