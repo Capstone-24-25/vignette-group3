@@ -2,7 +2,69 @@
 library(dplyr)
 library(randomForest)
 ```
+with fatcors
+```{r}
+hh_bgDensity <- hh_bgDensity %>% 
+  select(-bg_density)
 
+#combine two data set by hhid
+combined_data <- merge(hh_bgDensity, PersonData, by = 'hhid')
+
+combined_data <- merge(HHData, combined_data, by = 'hhid')
+
+combined_data$bggroup <- as.factor(combined_data$bg_group)
+
+# Transform and filter the combined_data
+combined_data <- combined_data %>%
+  # Remove invalid values for specified columns
+  filter(WorkDaysWk != 8, WorkDaysWk != 9,
+         TypicalHoursWk != 998, TypicalHoursWk != 999,
+         TransitTripsWk != 98, TransitTripsWk != 99,
+         WalkTripsWk != 98, WalkTripsWk != 99,
+         BikeTripsWk != 98, BikeTripsWk != 99) %>%
+  # Convert columns to factors
+  mutate(
+    HH_anyTransitRider = as.factor(HH_anyTransitRider),
+    HH_homeType = as.factor(HH_homeType),
+    HH_homeowner = as.factor(HH_homeowner),
+    HH_isHispanic = as.factor(HH_isHispanic),
+    HH_intEnglish = as.factor(HH_intEnglish),
+    HH_income = as.factor(HH_income),
+    Male = as.factor(Male),
+    persWhite = as.factor(persWhite),
+    persHisp = as.factor(persHisp),
+    persAfricanAm = as.factor(persAfricanAm),
+    persNativeAm = as.factor(persNativeAm),
+    persAsian = as.factor(persAsian),
+    persPacIsl = as.factor(persPacIsl),
+    persOthr = as.factor(persOthr),
+    persDKrace = as.factor(persDKrace),
+    persRFrace = as.factor(persRFrace),
+    bornUSA = as.factor(bornUSA),
+    DriverLic = as.factor(DriverLic),
+    TransitPass = as.factor(TransitPass),
+    Employed = as.factor(Employed),
+    WorkFixedLoc = as.factor(WorkFixedLoc),
+    WorkHome = as.factor(WorkHome),
+    WorkNonfixed = as.factor(WorkNonfixed),
+    FlexSched = as.factor(FlexSched),
+    FlexPrograms = as.factor(FlexPrograms),
+    Disability = as.factor(Disability),
+    DisLicensePlt = as.factor(DisLicensePlt),
+    Student = as.factor(Student),
+    workday = as.factor(workday),
+    hhid = paste(hhid, pnum),  # Combine hhid and pnum
+    SchoolMode = as.factor(SchoolMode),
+    WorkMode = as.factor(WorkMode),
+    EducationCompl = as.factor(EducationCompl)
+  ) %>%
+  # Drop unnecessary column
+  select(-pnum)
+
+combined_data <- na.omit(combined_data)
+
+nrow(combined_data)
+```
 
 
 ```{r}
@@ -13,20 +75,25 @@ hh_bgDensity <- read_rds('/Users/shirleyw/Documents/GitHub/vignette-group3/Data/
 ```
 
 ```{r}
-#retain only the numerical variables in personHHData
-personHHData <- PersonData %>% 
+PersonData <- PersonData %>% 
+  select(where(is.numeric))
+
+HHData <- HHData %>%
   select(where(is.numeric))
 
 hh_bgDensity <- hh_bgDensity %>% 
   select(-bg_density)
 
 #combine two data set by hhid
-combined_data <- merge(hh_bgDensity, personHHData, by = 'hhid')
+combined_data <- merge(hh_bgDensity, PersonData, by = 'hhid')
+
+combined_data <- merge(HHData, combined_data, by = 'hhid')
 
 combined_data <- na.omit(combined_data)
 combined_data$bggroup <- as.factor(combined_data$bg_group)
 nrow(combined_data)
 ```
+
 ```{r}
 library(tidymodels)
 
@@ -104,6 +171,9 @@ accuracy <- predictions %>%
   filter(.metric == "accuracy")
 print(accuracy)
 ```
+
+
+
 
 
 
