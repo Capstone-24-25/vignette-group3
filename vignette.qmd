@@ -79,7 +79,6 @@ data <- personHHData  %>%
          DisLicensePlt = as.factor(DisLicensePlt),
          Student = as.factor(Student),
          workday = as.factor(workday),
-         bg_group = as.factor(bg_group),
          hhid = paste(hhid, pnum),
          SchoolMode = as.factor(SchoolMode),
          WorkMode = as.factor(WorkMode),
