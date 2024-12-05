@@ -96,11 +96,11 @@ scaled_data <- scale(numeric_data)
 hhid <- data$hhid
 bg_group <- as.data.frame(data$bg_group)
 scaled_data <- cbind(hhid, bg_group, scaled_data) %>% 
-  mutate(bg_group = data$bg_group))
+  mutate(bg_group = data$bg_group)
 
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame() %>% 
-  select(-pnum)
+  select(-pnum, -`data$bg_group`)
 
 
 ```
