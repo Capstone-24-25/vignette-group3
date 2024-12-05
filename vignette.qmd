@@ -43,23 +43,6 @@ county_shp <- st_read("./Data/raw/counties/counties.shp")
 personHHData <- left_join(PersonData, HHData) %>%
   left_join(hh_bgDensity)
 
-# Preprocess data
-numeric_columns <- sapply(personHHData, is.numeric)
-
-numeric_data <- personHHData[, numeric_columns]
-
-numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
-
-scaled_data <- scale(numeric_data)
-
-hhid <- personHHData$hhid
-bg_group <- personHHData$bg_group
-scaled_data <- cbind(hhid, bg_group, scaled_data)
-
-scaled_data_clean <- na.omit(scaled_data) %>% 
-  as.data.frame() %>% 
-  mutate(bg_group = as.factor(bg_group))
-
 data <- personHHData  %>% 
   filter(WorkDaysWk != 8 , WorkDaysWk !=9,
          TypicalHoursWk != 998, TypicalHoursWk!= 999,
@@ -99,6 +82,24 @@ data <- personHHData  %>%
          SchoolMode = as.factor(SchoolMode),
          WorkMode = as.factor(WorkMode),
          EducationCompl = as.factor(EducationCompl))
+
+# Preprocess data
+numeric_columns <- sapply(data, is.numeric)
+
+numeric_data <- data[, numeric_columns]
+
+numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
+
+scaled_data <- scale(numeric_data)
+
+hhid <- personHHData$hhid
+bg_group <- personHHData$bg_group
+scaled_data <- cbind(hhid, bg_group, scaled_data)
+
+scaled_data_clean <- na.omit(scaled_data) %>% 
+  as.data.frame() %>% 
+  mutate(bg_group = as.factor(bg_group))
+
 
 ```
 
@@ -350,7 +351,7 @@ We can also take a look at which variables were most important in explaining the
 
 ```{r}
 # Plot variable importance with top 10 important variables
-rf_models %>% 
+rf_model %>% 
   vip() +
   theme_minimal()
 ```
