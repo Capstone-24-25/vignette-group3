@@ -33,6 +33,7 @@ library(nnet)
 library(randomForest)
 library(vip)
 library(SparseM)
+library(Matrix)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
@@ -57,6 +58,7 @@ data <- personHHData  %>%
          HH_intEnglish = as.factor(HH_intEnglish),
          HH_income = as.factor(HH_income),
          Male = as.factor(Male),
+         persWhite = as.factor(persWhite),
          persHisp = as.factor(persHisp),
          persAfricanAm = as.factor(persAfricanAm),
          persNativeAm = as.factor(persNativeAm),
@@ -78,11 +80,11 @@ data <- personHHData  %>%
          DisLicensePlt = as.factor(DisLicensePlt),
          Student = as.factor(Student),
          workday = as.factor(workday),
-         bg_group = as.factor(bg_group),
          hhid = paste(hhid, pnum),
          SchoolMode = as.factor(SchoolMode),
          WorkMode = as.factor(WorkMode),
-         EducationCompl = as.factor(EducationCompl))
+         EducationCompl = as.factor(EducationCompl)) %>% 
+  select(-pnum)
 
 # Preprocess data
 numeric_columns <- sapply(data, is.numeric)
@@ -94,12 +96,17 @@ numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
 scaled_data <- scale(numeric_data)
 
 hhid <- data$hhid
-bg_group <- data$bg_group
-scaled_data <- cbind(hhid, bg_group, scaled_data)
+bg_group <- as.data.frame(data$bg_group)
+scaled_data <- cbind(hhid, bg_group, scaled_data) %>% 
+  mutate(bg_group = data$bg_group)
 
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame() %>% 
+<<<<<<< HEAD
   select(-pnum)
+=======
+  select(-`data$bg_group`)
+>>>>>>> 30926661d9f00981f7a3d0da6a7e9ddd5453ee3f
 ```
 
 ## Exploratory Data Analysis
@@ -112,7 +119,7 @@ Before we partition our data and fit classification models, we want to get to kn
 county_bg_aggreg <- data %>% 
   group_by(County, CTFIP, bg_group) %>%  # group by county, CTFIP, and also bg_group
   mutate(count = n()) %>% 
-  summarise_at(vars(-hhid, -pnum), mean)
+  summarise_at(vars(-hhid), mean)
 
 county_bg_shp <- county_shp %>% 
   merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
@@ -186,7 +193,7 @@ train_features <- training(partitions) %>%
 train_labels <- training(partitions) %>%
   select(hhid, bg_group)
 
-train_features  <- data.frame(lapply(train_features, as.numeric))
+train_features <- data.frame(lapply(train_features, as.numeric))
 test_features  <- data.frame(lapply(test_features, as.numeric))
 
 ```
@@ -197,14 +204,16 @@ To reduce the dimensionality of the dataset, we employ PCA.
 
 #### Step 1: Perform PCA on training data
 
-
 ```{r}
 # Set seed
 set.seed(14531)
 
+# Ensure the data is numeric and convert to a matrix
+train_features_matrix <- as.matrix(train_features)
+test_features_matrix <- as.matrix(test_features)
+
 # Convert training data to sparse matrix to use sparsesvd function to perform PCA
-train_features_sparse <- train_features %>% 
-  as("sparseMatrix")
+train_features_sparse <- as(train_features_matrix, "sparseMatrix")
 
 # Perform PCA on sparse training data matrix and turn into dataframe
 train_svd <- sparsesvd(train_features_sparse, rank = 18)
@@ -260,7 +269,7 @@ reproject_fn <- function(.dtm, train_projected) {
 }
 
 # Project
-test_projected <- reproject_fn(test_features, train_svd)
+test_projected <- reproject_fn(test_features_matrix, train_svd)
 ```
 
 Now, the dataset has been transformed.
@@ -272,24 +281,29 @@ Now that we have reduced the dimensionality of the dataset, we can feed the tran
 ### Step 1: Get the reduced PCA data that you will feed into logistic regression model
 
 ```{r}
+# Select 12 PCs for training and testing data
 training_projected_reduced <- training_projected[, 1:reduced_pcs]
 test_projected_reduced <- test_projected[, 1:reduced_pcs]
 
+# Add response variable, bg_group, back to PCs in training
 reduced_training <- cbind(training_projected_reduced, bg_group = train_labels$bg_group)
 
+# Add response variable, bg_group, back to PCs in training
 reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_labels$bg_group)
 ```
 
 ### Step 2: Fit logistic regression model with the PCA reduced training data
 
 ```{r}
+# fit model to predict bg_group using all predictors on PCA reduced training data
 log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 ```
 
 Let's see how well our model was able to classify the different household densities
 
 ```{r}
-logreg_test_predictions <- predict(log_regmodel, newdata = reduced_testing)
+# generate predictions for the test dataset using the fitted log reg model
+logreg_predictions <- predict(log_regmodel, newdata = reduced_training)
 ```
 
 ### Step 3: Accuracy measures
@@ -298,7 +312,7 @@ Finally, look at the accuracy of the logistic regression model by summing across
 
 ```{r}
 # Create a confusion matrix
-conf_matrix <- table(Predicted = logreg_test_predictions, Actual = reduced_testing$bg_group)
+conf_matrix <- table(Predicted = logreg_predictions, Actual = reduced_training$bg_group)
 
 # Calculate overall accuracy
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)

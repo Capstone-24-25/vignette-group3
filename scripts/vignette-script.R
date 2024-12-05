@@ -1,5 +1,94 @@
-
 # Commented Vignette Script
+
+# Loading necessary packages
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidymodels)
+library(sparsesvd)
+library(nnet)
+library(sf)
+library(mapview)
+mapviewOptions(fgb = FALSE)
+library(leafsync)
+library(maps)
+library(nnet)
+library(randomForest)
+library(vip)
+library(SparseM)
+library(Matrix)
+
+# Read in datasets
+PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
+HHData <- read_rds('./Data/raw/HHData_111A.Rds')
+hh_bgDensity <- read_rds('./Data/raw/hh_bgDensity.Rds')
+county_shp <- st_read("./Data/raw/counties/counties.shp")
+
+# Merge datasets
+personHHData <- left_join(PersonData, HHData) %>% left_join(hh_bgDensity)
+
+# Preprocess data
+data <- personHHData  %>% 
+  # filter out observations for variables that have values of DK (respondents responded with Don't Know)
+  # which take values of 9, 98, 998 or RF (respondent refused to answer) which takes values 9, 99, 999
+  filter(WorkDaysWk != 8 , WorkDaysWk !=9,
+         TypicalHoursWk != 998, TypicalHoursWk!= 999,
+         TransitTripsWk != 98, TransitTripsWk != 99,
+         WalkTripsWk != 98, WalkTripsWk != 99,
+         BikeTripsWk != 98, BikeTripsWk != 99) %>% 
+  # convert variables represented by 0 or 1 into factors 
+  mutate(HH_anyTransitRider = as.factor(HH_anyTransitRider),
+         HH_homeType = as.factor(HH_homeType),
+         HH_homeowner = as.factor(HH_homeowner),
+         HH_isHispanic = as.factor(HH_isHispanic),
+         HH_intEnglish = as.factor(HH_intEnglish),
+         HH_income = as.factor(HH_income),
+         Male = as.factor(Male),
+         persHisp = as.factor(persHisp),
+         persAfricanAm = as.factor(persAfricanAm),
+         persNativeAm = as.factor(persNativeAm),
+         persAsian = as.factor(persAsian),
+         persPacIsl = as.factor(persPacIsl),
+         persOthr = as.factor(persOthr),
+         persDKrace = as.factor(persDKrace),
+         persRFrace = as.factor(persRFrace),
+         bornUSA = as.factor(bornUSA),
+         DriverLic = as.factor(DriverLic),
+         TransitPass = as.factor(TransitPass),
+         Employed = as.factor(Employed),
+         WorkFixedLoc = as.factor(WorkFixedLoc),
+         WorkHome =as.factor(WorkHome),
+         WorkNonfixed = as.factor(WorkNonfixed),
+         FlexSched = as.factor(FlexSched),
+         FlexPrograms = as.factor(FlexPrograms),
+         Disability = as.factor(Disability),
+         DisLicensePlt = as.factor(DisLicensePlt),
+         Student = as.factor(Student),
+         workday = as.factor(workday),
+         hhid = paste(hhid, pnum),
+         SchoolMode = as.factor(SchoolMode),
+         WorkMode = as.factor(WorkMode),
+         EducationCompl = as.factor(EducationCompl))
+
+# checks which columns are numeric 
+numeric_columns <- sapply(data, is.numeric)
+
+numeric_data <- data[, numeric_columns]
+
+numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
+
+scaled_data <- scale(numeric_data)
+
+hhid <- data$hhid
+bg_group <- data$bg_group
+scaled_data <- cbind(hhid, bg_group, scaled_data)
+
+scaled_data_clean <- na.omit(scaled_data) %>% 
+  as.data.frame() %>% 
+  select(-pnum)
+
+
+
 
 # Loading necessary packages
 library(tidyverse)
