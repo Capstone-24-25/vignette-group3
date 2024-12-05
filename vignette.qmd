@@ -172,6 +172,7 @@ Before fitting models, it is imperative to split our data into a training set an
 # Set seed
 set.seed(14531)
 
+data_clean  <- data.frame(lapply(scaled_data_clean, as.numeric))
 # Partition data
 partitions <- scaled_data_clean %>% 
   initial_split(prop = 0.8)
@@ -186,6 +187,9 @@ train_features <- training(partitions) %>%
   select(-hhid, -bg_group)
 train_labels <- training(partitions) %>%
   select(hhid, bg_group)
+
+train_features  <- data.frame(lapply(train_features, as.numeric))
+test_features  <- data.frame(lapply(test_features, as.numeric))
 
 ```
 
