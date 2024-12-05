@@ -60,6 +60,46 @@ scaled_data_clean <- na.omit(scaled_data) %>%
   as.data.frame() %>% 
   mutate(bg_group = as.factor(bg_group))
 
+data <- personHHData  %>% 
+  filter(WorkDaysWk != 8 , WorkDaysWk !=9,
+         TypicalHoursWk != 998, TypicalHoursWk!= 999,
+         TransitTripsWk != 98, TransitTripsWk != 99,
+         WalkTripsWk != 98, WalkTripsWk != 99,
+         BikeTripsWk != 98, BikeTripsWk != 99) %>% 
+  mutate(HH_anyTransitRider = as.factor(HH_anyTransitRider),
+         HH_homeType = as.factor(HH_homeType),
+         HH_homeowner = as.factor(HH_homeowner),
+         HH_isHispanic = as.factor(HH_isHispanic),
+         HH_intEnglish = as.factor(HH_intEnglish),
+         HH_income = as.factor(HH_income),
+         Male = as.factor(Male),
+         persHisp = as.factor(persHisp),
+         persAfricanAm = as.factor(persAfricanAm),
+         persNativeAm = as.factor(persNativeAm),
+         persAsian = as.factor(persAsian),
+         persPacIsl = as.factor(persPacIsl),
+         persOthr = as.factor(persOthr),
+         persDKrace = as.factor(persDKrace),
+         persRFrace = as.factor(persRFrace),
+         bornUSA = as.factor(bornUSA),
+         DriverLic = as.factor(DriverLic),
+         TransitPass = as.factor(TransitPass),
+         Employed = as.factor(Employed),
+         WorkFixedLoc = as.factor(WorkFixedLoc),
+         WorkHome =as.factor(WorkHome),
+         WorkNonfixed = as.factor(WorkNonfixed),
+         FlexSched = as.factor(FlexSched),
+         FlexPrograms = as.factor(FlexPrograms),
+         Disability = as.factor(Disability),
+         DisLicensePlt = as.factor(DisLicensePlt),
+         Student = as.factor(Student),
+         workday = as.factor(workday),
+         bg_group = as.factor(bg_group),
+         hhid = paste(hhid, pnum),
+         SchoolMode = as.factor(SchoolMode),
+         WorkMode = as.factor(WorkMode),
+         EducationCompl = as.factor(EducationCompl))
+
 ```
 
 ## Exploratory Data Analysis
@@ -69,7 +109,7 @@ Before we partition our data and fit classification models, we want to get to kn
 ### Static Map
 
 ```{r, message=F, warning=F}
-county_bg_aggreg <- personHHData %>% 
+county_bg_aggreg <- data %>% 
   group_by(County, CTFIP, bg_group) %>%  # group by county, CTFIP, and also bg_group
   mutate(count = n()) %>% 
   summarise_at(vars(-hhid, -pnum), mean)
