@@ -191,7 +191,25 @@ train_labels <- training(partitions) %>%
 
 To reduce the dimensionality of the dataset, we employ PCA.
 
-#### Step 1: Visualizing variance explained by principal components
+#### Step 1: Perform PCA on training data
+
+```{r}
+# Set seed
+set.seed(14531)
+
+# Convert training data to sparse matrix to use sparsesvd function to perform PCA
+train_dtm_sparse <- as.matrix(train_dtm) %>% 
+  as("sparseMatrix")
+
+# Perform PCA on sparse training data matrix and turn into dataframe
+train_svd <- sparsesvd(train_dtm_sparse, rank = 18)
+training_projected <- as.data.frame(train_svd$u %*% diag(train_svd$d))
+
+# Assign column names
+colnames(training_projected) <- paste0("PC", 1:ncol(training_projected))
+```
+
+#### Step 2: Visualizing variance explained by principal components
 
 First, determine how many principal components to retain based on their respective variance.
 
@@ -220,24 +238,6 @@ cat("Number of PCs to retain:", reduced_pcs)
 # Plot PC1 vs PC2
 plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
      main = "PCA - PC1 vs PC2", pch = 19, col = "blue")
-```
-
-#### Step 2: Perform PCA on training data
-
-```{r}
-# Set seed
-set.seed(14531)
-
-# Convert training data to sparse matrix to use sparsesvd function to perform PCA
-train_dtm_sparse <- as.matrix(train_dtm) %>% 
-  as("sparseMatrix")
-
-# Perform PCA on sparse training data matrix and turn into dataframe
-train_svd <- sparsesvd(train_dtm_sparse, rank = 18)
-training_projected <- as.data.frame(train_svd$u %*% diag(train_svd$d))
-
-# Assign column names
-colnames(training_projected) <- paste0("PC", 1:ncol(training_projected))
 ```
 
 #### Step 3: Project testing data onto training PCA
