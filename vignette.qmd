@@ -103,7 +103,6 @@ scaled_data <- cbind(hhid, bg_group, scaled_data) %>%
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame() %>% 
   select(-`data$bg_group`)
-
 ```
 
 ## Exploratory Data Analysis
@@ -192,7 +191,6 @@ train_labels <- training(partitions) %>%
 
 train_features <- data.frame(lapply(train_features, as.numeric))
 test_features  <- data.frame(lapply(test_features, as.numeric))
-
 ```
 
 ## Principal Component Analysis
