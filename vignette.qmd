@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   Employ logistic regression using `glm()` and `multinom()`
 
--   Building a random forest model using `randomForest()`
+-   Building a random forest model using cross-validation
 
 We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
@@ -322,11 +322,13 @@ As you can see, the low accuracy indicates that PCA might not be the best approa
 
 ## Random Forest
 
+### Step 1: Set up the data for Random Forest modelling
+For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
 ```{r}
 #look at missing data
 colSums(is.na(data))
 ```
-
+From the table, you will see there is a high amount of missing data in DisLicensePlt (if the respondent has a disabled license plate), SchoolMode (how the respondent travels to school), and WorkMode (how the respondent travels to work). We will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively. We will also remove any location related variables, as those are highly correlated to `bg_group` and remove any other rows with missing values.
 ```{r}
 # Set seed for reproducibility
 set.seed(14531)
@@ -340,6 +342,8 @@ rf_data <- data %>%
   na.omit()
 ```
 
+### Step 2: Data Partitioning
+Next we want to split the data into training and testing sets. We will use 80% of the data for training and 20% for testing.
 ```{r}
 # Set seed for reproducibility
 set.seed(14531)
@@ -352,6 +356,8 @@ train_data <- training(partitions)
 test_data <- testing(partitions)
 ```
 
+### Step 3: Define the model
+Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `randomForest` engine and set the mode to classification.
 ```{r}
 # Specify the random forest model
 rf_spec <- rand_forest(
@@ -363,6 +369,8 @@ rf_spec <- rand_forest(
   set_mode("classification")
 ```
 
+### Step 4: Define the workflow
+Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with bg_group as the response variable and all other variables in the dataset as predictors.
 ```{r}
 # Define a workflow
 rf_workflow <- workflow() %>% 
@@ -370,6 +378,8 @@ rf_workflow <- workflow() %>%
   add_formula(bg_group ~ .)
 ```
 
+### Step 5: Set up cross-validation
+Now we want to set up cross-validation with 5 folds. We also want to make sure we stratify the data by `bg_group` to ensure that each fold has an equal distribution of the different household densities. Then, we also set up a grid to test different combinations of the parameters `mtry`, `trees`, and `min_n` with 5 levels.
 ```{r}
 # Set up cross-validation
 set.seed(14531)
@@ -380,7 +390,9 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
                         trees(range = c(100, 500)),
                         min_n(range = c(5, 10)),
                         levels = 5)
-
+```
+### Step 6: Tune the Model
+```{r}
 # Tune the model
 tune_results <- tune_grid(
   rf_workflow,
@@ -388,13 +400,15 @@ tune_results <- tune_grid(
   grid = rf_grid
 )
 ```
+### Step 7: Finalize the model
+Now that we looked through the different parameter combinations, we want to extract the parameters that led to the most accurate model and finalize the model with those parameters. The best parameters can be seen below:
 
 ```{r}
 # Extract the best parameters
 best_params <- select_best(tune_results, metric = "accuracy")
 print(best_params)
 ```
-
+Then we want to finalize the model with the best parameters and train that model on the entire training data. We will then evaluate the model on the test data and get the predictions.
 ```{r}
 # Finalize the workflow with the best parameters
 final_rf <- finalize_workflow(rf_workflow, best_params)
@@ -406,6 +420,8 @@ final_rf_fit <- fit(final_rf, data = train_data)
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
 ```
 
+### Step 8: Evaluate the model
+Using a confusion matrix...
 ```{r}
 # Confusion matrix
 confusion_matrix <- predictions %>% 
@@ -426,51 +442,5 @@ rf_model %>%
   vip() +
   theme_minimal()
 ```
-
-
-### Step 1: Set up the data for RandomForest modelling
-
-For the `randomForest()` function, create dataframes that has all predictive variables, using data from before the PCA, and include response variable `bg_group`.
-
-```{r}
-#training
-training <- training(partitions) %>% select(-hhid)
-
-#testing
-testing <- testing(partitions) %>% select(-hhid)
-```
-
-### Step 2: Fit Random Forest model with training data
-
-Fit Random Forest model on training data using 300 trees, 20 predictor variables randomly selected at each tree split, and making sure variable importance is being calculated.
-
-```{r}
-set.seed(14531)
-rf_model <- randomForest(bg_group ~ ., data = training, ntree = 300, mtry = 20, importance = TRUE)
-
-```
-
-### Step 3: Accuracy Measures
-
-Lastly, look at the confusion matrix for the Random Forest model and calculate the accuracy to see how well the model performed.
-
-```{r}
-#Evaluate the Model
-predictions <- predict(rf_model, newdata = testing)
-
-#confusion matrix
-confusion_matrix <- table(Predicted = predictions, Actual = reduced_testing$bg_group)
-print(confusion_matrix)
-
-# Calculate accuracy
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-print(paste("Accuracy:", round(accuracy, 4)))
-```
-
-With an accuracy of 0.4058, the model performed better than the logistic regression with PCA.
-
-### Step 4: Variable Importance
-
-We can also take a look at which variables were most important in explaining the variation in the `bg_group` variation. The household home type was the most important, followed by the number of public transit riders in the household and the number of walking trips taken the week of the survey.
 
 
