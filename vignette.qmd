@@ -323,12 +323,20 @@ As you can see, the low accuracy indicates that PCA might not be the best approa
 ## Random Forest
 
 ```{r}
+#look at missing data
+colSums(is.na(data))
+```
+
+```{r}
 # Set seed for reproducibility
 set.seed(14531)
 
 #clean data
 rf_data <- data %>% 
   select(-County, -CTFIP, -MPO, -City, -bg_density) %>% 
+  mutate(DisLicensePlt = as.factor(ifelse(is.na(DisLicensePlt), 'Not Disabled', DisLicensePlt)),
+  SchoolMode = as.factor(ifelse(is.na(SchoolMode), 'Not in School', SchoolMode)),
+  WorkMode = as.factor(ifelse(is.na(WorkMode), 'Not Working', SchoolMode))) %>% 
   na.omit()
 
 # Split the dataset
@@ -361,7 +369,7 @@ train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
 rf_grid <- grid_regular(mtry(range = c(5, 30)), 
                         trees(range = c(200, 600)),
                         min_n(range = c(10, 20)),
-                        levels = 8)
+                        levels = 5)
 
 # Tune the model
 tune_results <- tune_grid(
@@ -393,6 +401,7 @@ accuracy <- predictions %>%
   metrics(truth = bg_group, estimate = .pred_class) %>% 
   filter(.metric == "accuracy")
 print(accuracy)
+
 ```
 
 
