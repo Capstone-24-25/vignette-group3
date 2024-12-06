@@ -29,7 +29,7 @@ personHHData <- left_join(PersonData, HHData) %>% left_join(hh_bgDensity)
 
 # Preprocess data
 data <- personHHData  %>% 
-  # filter out observations for variables that have values of DK (respondents responded with Don't Know)
+  # filter out observations for numeric variables that have values of DK (respondents responded with Don't Know)
   # which take values of 9, 98, 998 or RF (respondent refused to answer) which takes values 9, 99, 999
   filter(WorkDaysWk != 8 , WorkDaysWk !=9,
          TypicalHoursWk != 998, TypicalHoursWk!= 999,
@@ -69,6 +69,7 @@ data <- personHHData  %>%
          SchoolMode = as.factor(SchoolMode),
          WorkMode = as.factor(WorkMode),
          EducationCompl = as.factor(EducationCompl))
+
 
 # Checks which columns are numeric 
 numeric_columns <- sapply(data, is.numeric)
@@ -226,4 +227,58 @@ log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 
 logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
-## Saving data
+## Random Forest
+
+#look at number of missing data per column
+colSums(is.na(data))
+# will see that there is a lot of missing data for DisLicensePlt, SchoolMode, and WorkMode
+# we will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively
+
+# Set seed for reproducibility
+set.seed(14531)
+
+#clean original dataset from before the preprocessing for PCA
+rf_data <- data %>% 
+  select(-County, -CTFIP, -MPO, -City, -bg_density) %>% 
+  mutate(DisLicensePlt = as.factor(ifelse(is.na(DisLicensePlt), 'Not Disabled', DisLicensePlt)),
+         SchoolMode = as.factor(ifelse(is.na(SchoolMode), 'Not in School', SchoolMode)),
+         WorkMode = as.factor(ifelse(is.na(WorkMode), 'Not Working', SchoolMode))) %>% 
+  na.omit()
+
+# Split the dataset with 80/20 split
+partitions <- initial_split(rf_data, prop = 0.8)
+
+# Create training and testing datasets
+train_data <- training(partitions)
+test_data <- testing(partitions)
+
+# Specify the random forest model for classification and set up tuning for mtry, trees, and min_n parameters
+rf_spec <- rand_forest(
+  mtry = tune(),
+  trees = tune(),
+  min_n = tune()
+) %>% 
+  set_engine("randomForest") %>% 
+  set_mode("classification")
+
+# Define a workflow, add model, and add formula with bg_group as response variable and using all other variables as predictors
+rf_workflow <- workflow() %>% 
+  add_model(rf_spec) %>% 
+  add_formula(bg_group ~ .)
+
+# Set up cross-validation with 5 folds 
+# stratify by bg_group to make sure all levels of bg_group are included in each fold
+train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
+
+# Set up a grid to test different parameter combinations
+rf_grid <- grid_regular(mtry(range = c(5, 30)), 
+                        trees(range = c(100, 500)),
+                        min_n(range = c(5, 10)),
+                        levels = 5)
+
+# Tune the model with the training folds and the grid
+tune_results <- tune_grid(
+  rf_workflow,
+  resamples = train_folds,
+  grid = rf_grid
+)
