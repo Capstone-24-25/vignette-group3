@@ -318,17 +318,51 @@ print(paste("Accuracy:", round(accuracy, 4)))
 
 As you can see, the low accuracy indicates that PCA might not be the best approach for the logistic regression model.
 
+### Step 4: Linearity Assumption
 
+Now we aim to find out why the logistic regression model is failing. Since logistic regression models the log-odds of the outcome as a linear combination of the predictors, the model assumes a linear relationship between these items. If the relationship between the predictors and the log-odds is non-linear, the logistic regression model may not perform well, which is demonstrated in the case of this dataset. Let's check the linearity assumptions to further show this.
+
+```{r}
+# Extract non PCA training data
+training_logreg <- training(partitions)
+
+# Select sub sample of data to test assumption on
+training_sample <- training_logreg %>%
+  sample_n(1000)
+
+# Create binary response variable
+training_sample$bg_group_binary <- ifelse(training_sample$bg_group == "1", 1, 0)
+
+# Fit binary logistic regression on one predictor
+logreg_binary <- glm(bg_group_binary ~ WorkDaysWk, data = training_sample, family = binomial)
+
+# Predict log odds for each observation using link = 'logit' argument
+predicted_logodds <- predict(logreg_binary, type = "link",  link = "logit")
+
+# Plot relationship between predictor and predicted log odds of outcome
+nonlinear_plot <- ggplot(training_sample, aes(x = WorkDaysWk, y = predicted_logodds)) + 
+    geom_point() + 
+    geom_smooth(method = "loess")  
+nonlinear_plot
+```
+
+From observing the plot above, it is clear that the relationship between the predicted log odds and a predictor, `WorkDaysWk`, is non-linear. We use the non-PCA data to test the linearity assumption because the principal components no longer represent the original features in a directly interpretable way. If we want to see if each predictor has a linear relationship with the log odds of the outcome, we use the non transformed data. In addition, we simplify the problem to a binary classification so that we can focus on how the relationship between a predictor and the log-odds of that outcome behaves, giving us a clearer, more interpretable plot for testing the linearity assumption.
+
+Now that we have concluded that this dataset fails the linearity assumption, we know that it would be best modeled by other classification models, which is what we will fit next.
 
 ## Random Forest
 
 ### Step 1: Set up the data for Random Forest modelling
+
 For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
+
 ```{r}
 #look at missing data
 colSums(is.na(data))
 ```
+
 From the table, you will see there is a high amount of missing data in DisLicensePlt (if the respondent has a disabled license plate), SchoolMode (how the respondent travels to school), and WorkMode (how the respondent travels to work). We will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively. We will also remove any location related variables, as those are highly correlated to `bg_group` and remove any other rows with missing values.
+
 ```{r}
 # Set seed for reproducibility
 set.seed(14531)
@@ -343,7 +377,9 @@ rf_data <- data %>%
 ```
 
 ### Step 2: Data Partitioning
+
 Next we want to split the data into training and testing sets. We will use 80% of the data for training and 20% for testing.
+
 ```{r}
 # Set seed for reproducibility
 set.seed(14531)
@@ -357,7 +393,9 @@ test_data <- testing(partitions)
 ```
 
 ### Step 3: Define the model
+
 Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `randomForest` engine and set the mode to classification.
+
 ```{r}
 # Specify the random forest model
 rf_spec <- rand_forest(
@@ -370,7 +408,9 @@ rf_spec <- rand_forest(
 ```
 
 ### Step 4: Define the workflow
+
 Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with bg_group as the response variable and all other variables in the dataset as predictors.
+
 ```{r}
 # Define a workflow
 rf_workflow <- workflow() %>% 
@@ -379,7 +419,9 @@ rf_workflow <- workflow() %>%
 ```
 
 ### Step 5: Set up cross-validation
+
 Now we want to set up cross-validation with 5 folds. We also want to make sure we stratify the data by `bg_group` to ensure that each fold has an equal distribution of the different household densities. Then, we also set up a grid to test different combinations of the parameters `mtry`, `trees`, and `min_n` with 5 levels.
+
 ```{r}
 # Set up cross-validation
 set.seed(14531)
@@ -391,7 +433,9 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
                         min_n(range = c(5, 10)),
                         levels = 5)
 ```
+
 ### Step 6: Tune the Model
+
 ```{r}
 # Tune the model
 tune_results <- tune_grid(
@@ -400,7 +444,9 @@ tune_results <- tune_grid(
   grid = rf_grid
 )
 ```
+
 ### Step 7: Finalize the model
+
 Now that we looked through the different parameter combinations, we want to extract the parameters that led to the most accurate model and finalize the model with those parameters. The best parameters can be seen below:
 
 ```{r}
@@ -408,7 +454,9 @@ Now that we looked through the different parameter combinations, we want to extr
 best_params <- select_best(tune_results, metric = "accuracy")
 print(best_params)
 ```
+
 Then we want to finalize the model with the best parameters and train that model on the entire training data. We will then evaluate the model on the test data and get the predictions.
+
 ```{r}
 # Finalize the workflow with the best parameters
 final_rf <- finalize_workflow(rf_workflow, best_params)
@@ -421,7 +469,9 @@ predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
 ```
 
 ### Step 8: Evaluate the model
+
 Using a confusion matrix...
+
 ```{r}
 # Confusion matrix
 confusion_matrix <- predictions %>% 
@@ -442,5 +492,3 @@ rf_model %>%
   vip() +
   theme_minimal()
 ```
-
-
