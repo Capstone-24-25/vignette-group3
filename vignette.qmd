@@ -492,3 +492,5 @@ rf_model %>%
   vip() +
   theme_minimal()
 ```
+
+

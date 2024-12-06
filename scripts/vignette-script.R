@@ -1,4 +1,4 @@
-# Commented Vignette Script
+# Commented Line-By-Line Vignette Script
 
 # Loading necessary packages
 library(tidyverse)
@@ -25,9 +25,10 @@ hh_bgDensity <- read_rds('./Data/raw/hh_bgDensity.Rds')
 county_shp <- st_read("./Data/raw/counties/counties.shp")
 
 # Merge datasets
-personHHData <- left_join(PersonData, HHData) %>% left_join(hh_bgDensity)
+personHHData <- left_join(PersonData, HHData) %>%
+  left_join(hh_bgDensity)
 
-# Preprocess data
+# Pre-process the combined dataset `personHHData`
 data <- personHHData  %>% 
   # filter out observations for numeric variables that have values of DK (respondents responded with Don't Know)
   # which take values of 9, 98, 998 or RF (respondent refused to answer) which takes values 9, 99, 999
@@ -36,7 +37,7 @@ data <- personHHData  %>%
          TransitTripsWk != 98, TransitTripsWk != 99,
          WalkTripsWk != 98, WalkTripsWk != 99,
          BikeTripsWk != 98, BikeTripsWk != 99) %>% 
-  # convert variables represented by 0 or 1 into factors 
+  # Convert binary variables into factors
   mutate(HH_anyTransitRider = as.factor(HH_anyTransitRider),
          HH_homeType = as.factor(HH_homeType),
          HH_homeowner = as.factor(HH_homeowner),
@@ -44,6 +45,7 @@ data <- personHHData  %>%
          HH_intEnglish = as.factor(HH_intEnglish),
          HH_income = as.factor(HH_income),
          Male = as.factor(Male),
+         persWhite = as.factor(persWhite),
          persHisp = as.factor(persHisp),
          persAfricanAm = as.factor(persAfricanAm),
          persNativeAm = as.factor(persNativeAm),
@@ -68,174 +70,167 @@ data <- personHHData  %>%
          hhid = paste(hhid, pnum),
          SchoolMode = as.factor(SchoolMode),
          WorkMode = as.factor(WorkMode),
-         EducationCompl = as.factor(EducationCompl))
-
-
-# Checks which columns are numeric 
-numeric_columns <- sapply(data, is.numeric)
-
-numeric_data <- data[, numeric_columns]
-
-numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
-
-scaled_data <- scale(numeric_data)
-
-hhid <- data$hhid
-bg_group <- data$bg_group
-scaled_data <- cbind(hhid, bg_group, scaled_data)
-
-scaled_data_clean <- na.omit(scaled_data) %>% 
-  as.data.frame() %>% 
+         EducationCompl = as.factor(EducationCompl)) %>% 
+  # Take out the `pnum` variable to help with redudancy
   select(-pnum)
 
+# Check which columns are numeric
+numeric_columns <- sapply(data, is.numeric)
 
+# Filter into numeric data
+numeric_data <- data[, numeric_columns]
+numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
 
-
-# Loading necessary packages
-library(tidyverse)
-library(ggplot2)
-library(dplyr)
-library(tidymodels)
-library(sparsesvd)
-library(nnet)
-
-# Read in datasets
-PersonData <- read_rds('../data/PersonData_111A.Rds')
-HHData <- read_rds('../data/HHData_111A.Rds')
-hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
-
-# Merge datasets
-personHHData <- left_join(PersonData, HHData) %>%
-  left_join(hh_bgDensity)
-
-# Determine which columns are numeric
-numeric_columns <- sapply(personHHData, is.numeric)
-
-# Select only numeric variables
-numeric_data <- personHHData[, numeric_columns]
-
-# Remove county FIP code, household id, and bg_density (identification and response variables)
-numeric_data <- numeric_data %>% select(-CTFIP, -hhid, -bg_density)
-
-# Standardize data
+# Scale the numeric data
 scaled_data <- scale(numeric_data)
 
-# Add back in household id column and bg_group
-hhid <- personHHData$hhid
-bg_group <- as.factor(personHHData$bg_group)
-scaled_data <- cbind(hhid, bg_group, scaled_data)
+# Re-assign the `hhid` variable to fix an error
+hhid <- data$hhid
 
-# Remove rows with NA values
-scaled_data_clean <- na.omit(scaled_data) %>% 
-  as.data.frame()
+# Make `bg_group` variable into a data frame to convert it from numeric back to categorical
+bg_group <- as.data.frame(data$bg_group)
+
+# Update the `scaled_data` object to a data frame with columns `hhid`, `bg_group`, and `scaled_data`
+scaled_data <- cbind(hhid, bg_group, scaled_data) %>% 
+  # Re-assign `bg_group` variable to fix an error
+  mutate(bg_group = data$bg_group)
+
+# Re-assign the `scaled_data` object into `scaled_data_clean` with final clean data
+scaled_data_clean <- na.omit(scaled_data) %>% # Remove missing observations
+  as.data.frame() %>% # Transform into a data frame
+  # Remove outcome variable
+  select(-`data$bg_group`)
 
 
-# Partition data
+# Exploratory Data Analysis
+
+# Static Map Plot
+county_bg_aggreg <- data %>% 
+  group_by(County, CTFIP, bg_group) %>%  # group by `county`, `CTFIP`, and also `bg_group`
+  mutate(count = n()) %>% 
+  summarise_at(vars(-hhid), mean)
+county_bg_shp <- county_shp %>% 
+  merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
+  left_join(county_bg_aggreg)
+# get the CA county data
+county <- ggplot2::map_data("county", region = "california")
+county_bg <- merge(county, data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural")))
+county_bg_all <- county_bg_aggreg %>% 
+  mutate(subregion = tolower(County)) %>% 
+  full_join(county_bg, by = c("subregion", "bg_group"))
+ggplot(county_bg_all) +
+  geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  facet_wrap(vars(bg_group), nrow = 2) +  # multi-panel plots using facet_wrap(), plot in 2 rows
+  ggtitle("Total PMT in California at County-level") + 
+  theme_void() +
+  theme(legend.position="bottom")
+
+# Sum of Trips by Residential Area Plot
+urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
+                          zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                          layer.name = "Urban Trips")
+suburb_TripMap <- mapview(filter(county_bg_shp, bg_group == "Suburban"),
+                          zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                          layer.name = "Suburban Trips")
+exurb_TripMap <- mapview(filter(county_bg_shp, bg_group == "Exurban"),
+                         zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                         layer.name = "Exurban Trips")
+rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
+                         zcol = "Sum_Trips", legend = TRUE, popup = NULL,
+                         layer.name = "Rural Trips")
+latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = "all")
+
+
+# Data Partitioning
+
+# Set seed for reproducibility
 set.seed(14531)
+
+# Partition the data into an 80/20 split 
 partitions <- scaled_data_clean %>% 
   initial_split(prop = 0.8)
 
-# Separate id and response variable in testing and training data
+# Separate id and response variable in testing data
 test_dtm <- testing(partitions) %>% 
   select(-hhid, -bg_group)
 test_labels <- testing(partitions) %>% 
   select(hhid, bg_group)
 
+# Separate id and response variable in training data
 train_dtm <- training(partitions) %>% 
   select(-hhid, -bg_group)
 train_labels <- training(partitions) %>%
   select(hhid, bg_group)
 
 
-#Convert training data to sparse matrix to use sparsesvd function to perform PCA
-train_dtm_sparse <- as.matrix(train_dtm) %>% 
-  as("sparseMatrix")
+# Principal Component Analysis 
 
-#Perform PCA on sparse training data matrix and turn into dataframe
-train_svd <- sparsesvd(train_dtm_sparse, rank = 18)
+# Set seed for reproducibility
+set.seed(14531)
+
+# Perform PCA on training data
+# Ensure the training and testing data is numeric and convert to a matrix
+train_features_matrix <- as.matrix(train_features)
+test_features_matrix <- as.matrix(test_features)
+# Convert training data matrix into a sparse matrix
+train_features_sparse <- as(train_features_matrix, "sparseMatrix")
+# Perform PCA on sparse training data matrix using the `sparsevd()` function
+train_svd <- sparsesvd(train_features_sparse, rank = 18)
+# Turn projected data into a data frame
 training_projected <- as.data.frame(train_svd$u %*% diag(train_svd$d))
-
-#assign column names
+# Assign column names
 colnames(training_projected) <- paste0("PC", 1:ncol(training_projected))
 
-#function to reproject new data onto training PCA
-reproject_fn <- function(.dtm, train_projected) {
-  .dtm_sparse <- as(.dtm, "sparseMatrix")
-  test_projected <- as.matrix(.dtm_sparse %*% train_projected$v %*% diag(1 / train_projected$d))
-  colnames(test_projected) <- paste0("PC", 1:ncol(test_projected))
-  return(test_projected)
-}
-
-#project test data onto training PCA
-test_projected <- reproject_fn(test_dtm, train_svd)
-
-#explained variance plot
+# Create explained variance plot to visualize variance explained by principal components
 singular_values <- train_svd$d
 variance_explained <- (singular_values^2) / sum(singular_values^2)
-
 plot(variance_explained, type = "b", xlab = "Principal Component",
      ylab = "Proportion of Variance Explained", main = "Scree Plot")
 abline(h = 0.1, col = "red", lty = 2)
 
-#cumulative variance plot
+# Create cumulative variance plot to visualize variance explained by principal components
 cumulative_variance <- cumsum(variance_explained)
-
 plot(cumulative_variance, type = "b", xlab = "Principal Component",
      ylab = "Cumulative Variance Explained", main = "Cumulative Variance")
 
-# set the threshold for the cumulative variance (80%)
+# Set the threshold for the cumulative variance (80%)
 threshold <- 0.8
 reduced_pcs <- which(cumulative_variance >= threshold)[1]
 
-# print the number of PCs to keep
+# Print the number of PCs to keep
 cat("Number of PCs to retain:", reduced_pcs)
 
 # Plot PC1 vs PC2
 plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
      main = "PCA - PC1 vs PC2", pch = 19, col = "blue")
 
-
-# Add the categorical variable to the PC scores
-plot_pca_train <- cbind(training_projected, train_labels)  # Replace with actual variable
-
-# Plot with ggplot2
-library(ggplot2)
-ggplot(plot_pca_train, aes(x = PC1, y = PC2, color = as.factor(bg_group))) +
-  geom_point() +
-  labs(title = "PCA: PC1 vs PC2 by bg_group",
-       x = "PC1", y = "PC2") +
-  theme_minimal()+
-  scale_color_manual(values = c('green', 'blue', 'red', 'yellow'))
-
-## Logistic Regression
-
-# Get the reduced PCA data that you will feed into logistic regression model
-training_projected_reduced <- training_projected[, 1:reduced_pcs]
-test_projected_reduced <- test_projected[, 1:reduced_pcs]
-
-reduced_training <- cbind(training_projected_reduced, bg_group = train_labels$bg_group)
-
-reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_labels$bg_group)
-
-# Fit logistic regression model with the PCA reduced training data
+# Project testing data onto training PCA
+# Set seed for reproducibility
+set.seed(14531)
+# Define reprojection function `reproject_fn`
+reproject_fn <- function(.dtm, train_projected) {
+  .dtm_sparse <- as(.dtm, "sparseMatrix")
+  test_projected <- as.matrix(.dtm_sparse %*% train_projected$v %*% diag(1 / train_projected$d))
+  colnames(test_projected) <- paste0("PC", 1:ncol(test_projected))
+  return(test_projected)
+}
+# Project the testing matrix onto `training_svd`
+test_projected <- reproject_fn(test_features_matrix, train_svd)
 
 
-library(nnet)
-log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
-
-# Let's see how well our model was able to classify the different household densities
-
-logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
+# Logistic Regression
 
 
 
-## Random Forest
 
-#look at number of missing data per column
+# Random Forest
+
+# Look at number of missing data per column
 colSums(is.na(data))
 
-# will see that there is a lot of missing data for DisLicensePlt, SchoolMode, and WorkMode
-# we will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively
+# Will see that there is a lot of missing data for DisLicensePlt, SchoolMode, and WorkMode
+# We will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively
 
 # Set seed for reproducibility
 set.seed(14531)
@@ -256,7 +251,7 @@ train_data <- training(partitions)
 test_data <- testing(partitions)
 
 # Specify the random forest model for classification 
-# set up tuning for mtry, trees, and min_n parameters
+# Set-up tuning for mtry, trees, and min_n parameters
 rf_spec <- rand_forest(
   mtry = tune(),
   trees = tune(),
@@ -306,7 +301,6 @@ final_rf_fit <- fit(final_rf, data = train_data)
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
 
 #RF Model Evaluation
-
 # Use confusion matrix to see how well the model classified the different household densities
 confusion_matrix <- predictions %>% 
   conf_mat(truth = bg_group, estimate = .pred_class)
