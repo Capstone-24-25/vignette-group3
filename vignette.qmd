@@ -355,7 +355,6 @@ Now that we have concluded that this dataset fails the linearity assumption, we 
 ### Step 1: Set up the data for Random Forest modelling
 
 For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
-
 ```{r}
 #look at missing data
 colSums(is.na(data))
@@ -393,7 +392,6 @@ test_data <- testing(partitions)
 ```
 
 ### Step 3: Define the model
-
 Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `randomForest` engine and set the mode to classification.
 
 ```{r}
@@ -408,9 +406,7 @@ rf_spec <- rand_forest(
 ```
 
 ### Step 4: Define the workflow
-
 Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with bg_group as the response variable and all other variables in the dataset as predictors.
-
 ```{r}
 # Define a workflow
 rf_workflow <- workflow() %>% 
@@ -419,7 +415,6 @@ rf_workflow <- workflow() %>%
 ```
 
 ### Step 5: Set up cross-validation
-
 Now we want to set up cross-validation with 5 folds. We also want to make sure we stratify the data by `bg_group` to ensure that each fold has an equal distribution of the different household densities. Then, we also set up a grid to test different combinations of the parameters `mtry`, `trees`, and `min_n` with 5 levels.
 
 ```{r}
@@ -433,6 +428,7 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
                         min_n(range = c(5, 10)),
                         levels = 5)
 ```
+
 
 ### Step 6: Tune the Model
 
@@ -492,3 +488,5 @@ rf_model %>%
   vip() +
   theme_minimal()
 ```
+
+
