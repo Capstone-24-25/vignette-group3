@@ -103,7 +103,6 @@ scaled_data <- cbind(hhid, bg_group, scaled_data) %>%
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame() %>% 
   select(-`data$bg_group`)
-
 ```
 
 ## Exploratory Data Analysis
