@@ -33,6 +33,7 @@ data <- personHHData  %>%
   # Filter out observations for variables that have values of DK (respondents responded with Don't Know)
   # which take values of 9, 98, 998. Also filters out RF (respondent refused to answer) 
   # which takes values 9, 99, 999.
+
   filter(WorkDaysWk != 8 , WorkDaysWk !=9,
          TypicalHoursWk != 998, TypicalHoursWk!= 999,
          TransitTripsWk != 98, TransitTripsWk != 99,
@@ -243,14 +244,6 @@ test_projected <- reproject_fn(test_features_matrix, train_svd)
 
 
 
-## Random Forest
-
-#look at number of missing data per column
-colSums(is.na(data))
-
-# will see that there is a lot of missing data for DisLicensePlt, SchoolMode, and WorkMode
-# we will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively
-
 # Random Forest
 
 # Look at number of missing data per column
@@ -264,10 +257,8 @@ colSums(is.na(data))
 set.seed(14531)
 
 
-#clean original dataset from before the preprocessing for PCA
 
 # We will preprocess the original dataset differently for random forest, so we will clean the original dataset now
-
 rf_data <- data %>% 
   select(-County, -CTFIP, -MPO, -City, -bg_density) %>% 
   mutate(DisLicensePlt = as.factor(ifelse(is.na(DisLicensePlt), 'Not Disabled', DisLicensePlt)),
@@ -283,7 +274,6 @@ train_data <- training(partitions)
 test_data <- testing(partitions)
 
 # Specify the random forest model for classification 
-
 # Set-up tuning for mtry, trees, and min_n parameters
 rf_spec <- rand_forest(
   mtry = tune(),

@@ -355,6 +355,7 @@ Now that we have concluded that this dataset fails the linearity assumption, we 
 ### Step 1: Set up the data for Random Forest modelling
 
 For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
+
 ```{r}
 #look at missing data
 colSums(is.na(data))
@@ -392,6 +393,7 @@ test_data <- testing(partitions)
 ```
 
 ### Step 3: Define the model
+
 Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `randomForest` engine and set the mode to classification.
 
 ```{r}
@@ -406,7 +408,9 @@ rf_spec <- rand_forest(
 ```
 
 ### Step 4: Define the workflow
+
 Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with bg_group as the response variable and all other variables in the dataset as predictors.
+
 ```{r}
 # Define a workflow
 rf_workflow <- workflow() %>% 
@@ -415,6 +419,7 @@ rf_workflow <- workflow() %>%
 ```
 
 ### Step 5: Set up cross-validation
+
 Now we want to set up cross-validation with 5 folds. We also want to make sure we stratify the data by `bg_group` to ensure that each fold has an equal distribution of the different household densities. Then, we also set up a grid to test different combinations of the parameters `mtry`, `trees`, and `min_n` with 5 levels.
 
 ```{r}
@@ -489,4 +494,8 @@ rf_model %>%
   theme_minimal()
 ```
 
+# Conlcusion
 
+In conclusion, this project aimed to classify households into four classes urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of \_\_\_\_\_\_\_\_\_\_\_, which proves that this multinomial classification problem was a better fit for decision tree models like random forest.
+
+Looking forward with this dataset, there are other models that could classify the observations into the four household density categories more accurately, such as supper vector machines, gradient boosted machines, or neural networks. These models could handle the more complex data and patterns that simpler models might not perform as well on. But if we wanted to continue with the random forest model, then more hyperparameter tuning could result in higher accuracy as well. Another aspect of this dataset that could lead to better classification could be to utilize the geospatial features of this dataset. These were explored in the EDA, but could be very helpful predictors for a model to use in the future with this dataset. Overall, by fitting two classification models to the CHTS dataset, there was a lot of important exploration uncovered about the patterns of this data.
