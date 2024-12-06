@@ -70,7 +70,7 @@ data <- personHHData  %>%
          WorkMode = as.factor(WorkMode),
          EducationCompl = as.factor(EducationCompl))
 
-# checks which columns are numeric 
+# Checks which columns are numeric 
 numeric_columns <- sapply(data, is.numeric)
 
 numeric_data <- data[, numeric_columns]
@@ -98,7 +98,7 @@ library(tidymodels)
 library(sparsesvd)
 library(nnet)
 
-#Read in datasets
+# Read in datasets
 PersonData <- read_rds('../data/PersonData_111A.Rds')
 HHData <- read_rds('../data/HHData_111A.Rds')
 hh_bgDensity <- read_rds('../data/hh_bgDensity.Rds')
