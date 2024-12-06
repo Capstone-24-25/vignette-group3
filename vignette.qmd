@@ -192,7 +192,6 @@ train_labels <- training(partitions) %>%
 
 train_features <- data.frame(lapply(train_features, as.numeric))
 test_features  <- data.frame(lapply(test_features, as.numeric))
-
 ```
 
 ## Principal Component Analysis
