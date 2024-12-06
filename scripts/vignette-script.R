@@ -227,10 +227,13 @@ log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 
 logreg_test_predictions <- predict(multinom_model, newdata = reduced_testing)
 
+
+
 ## Random Forest
 
 #look at number of missing data per column
 colSums(is.na(data))
+
 # will see that there is a lot of missing data for DisLicensePlt, SchoolMode, and WorkMode
 # we will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively
 
@@ -252,7 +255,8 @@ partitions <- initial_split(rf_data, prop = 0.8)
 train_data <- training(partitions)
 test_data <- testing(partitions)
 
-# Specify the random forest model for classification and set up tuning for mtry, trees, and min_n parameters
+# Specify the random forest model for classification 
+# set up tuning for mtry, trees, and min_n parameters
 rf_spec <- rand_forest(
   mtry = tune(),
   trees = tune(),
@@ -261,7 +265,8 @@ rf_spec <- rand_forest(
   set_engine("randomForest") %>% 
   set_mode("classification")
 
-# Define a workflow, add model, and add formula with bg_group as response variable and using all other variables as predictors
+# Define a workflow, add model
+# add formula with bg_group as response variable and using all other variables as predictors
 rf_workflow <- workflow() %>% 
   add_model(rf_spec) %>% 
   add_formula(bg_group ~ .)
@@ -271,9 +276,12 @@ rf_workflow <- workflow() %>%
 train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
 
 # Set up a grid to test different parameter combinations
-rf_grid <- grid_regular(mtry(range = c(5, 30)), 
-                        trees(range = c(100, 500)),
+rf_grid <- grid_regular(mtry(range = c(5, 30)),
+                        #number of variables randomly selected at each split
+                        trees(range = c(100, 500)), 
+                        #number of trees in the forest
                         min_n(range = c(5, 10)),
+                        #minimum number of observations in each node
                         levels = 5)
 
 # Tune the model with the training folds and the grid
@@ -282,3 +290,35 @@ tune_results <- tune_grid(
   resamples = train_folds,
   grid = rf_grid
 )
+
+# Extract the best parameters for the model using accuracy as the metric
+best_params <- select_best(tune_results, metric = "accuracy")
+print(best_params)
+
+# Finalize the workflow with the best parameters
+final_rf <- finalize_workflow(rf_workflow, best_params)
+
+# Train the final model on the entire training data
+final_rf_fit <- fit(final_rf, data = train_data)
+
+# Get predictions on the test data 
+# combine with the original data to see how well the model performs
+predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
+
+#RF Model Evaluation
+
+# Use confusion matrix to see how well the model classified the different household densities
+confusion_matrix <- predictions %>% 
+  conf_mat(truth = bg_group, estimate = .pred_class)
+print(confusion_matrix)
+
+# Calculate accuracy metric
+accuracy <- predictions %>% 
+  metrics(truth = bg_group, estimate = .pred_class) %>% 
+  filter(.metric == "accuracy")
+print(accuracy)
+
+# Plot variable importance to see the top 10 variables that had the most impact on the model
+rf_model %>% 
+  vip() +
+  theme_minimal()

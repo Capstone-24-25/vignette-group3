@@ -103,6 +103,7 @@ scaled_data <- cbind(hhid, bg_group, scaled_data) %>%
 scaled_data_clean <- na.omit(scaled_data) %>% 
   as.data.frame() %>% 
   select(-`data$bg_group`)
+
 ```
 
 ## Exploratory Data Analysis
@@ -191,6 +192,7 @@ train_labels <- training(partitions) %>%
 
 train_features <- data.frame(lapply(train_features, as.numeric))
 test_features  <- data.frame(lapply(test_features, as.numeric))
+
 ```
 
 ## Principal Component Analysis
@@ -336,6 +338,11 @@ rf_data <- data %>%
   SchoolMode = as.factor(ifelse(is.na(SchoolMode), 'Not in School', SchoolMode)),
   WorkMode = as.factor(ifelse(is.na(WorkMode), 'Not Working', SchoolMode))) %>% 
   na.omit()
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(14531)
 
 # Split the dataset
 partitions <- initial_split(rf_data, prop = 0.8)
@@ -343,8 +350,9 @@ partitions <- initial_split(rf_data, prop = 0.8)
 # Create training and testing datasets
 train_data <- training(partitions)
 test_data <- testing(partitions)
+```
 
-
+```{r}
 # Specify the random forest model
 rf_spec <- rand_forest(
   mtry = tune(),
@@ -353,20 +361,24 @@ rf_spec <- rand_forest(
 ) %>% 
   set_engine("randomForest") %>% 
   set_mode("classification")
+```
 
+```{r}
 # Define a workflow
 rf_workflow <- workflow() %>% 
   add_model(rf_spec) %>% 
   add_formula(bg_group ~ .)
+```
 
+```{r}
 # Set up cross-validation
 set.seed(14531)
 train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
 
 # Set up a grid to test parameter combinations
 rf_grid <- grid_regular(mtry(range = c(5, 30)), 
-                        trees(range = c(200, 600)),
-                        min_n(range = c(10, 20)),
+                        trees(range = c(100, 500)),
+                        min_n(range = c(5, 10)),
                         levels = 5)
 
 # Tune the model
@@ -375,11 +387,15 @@ tune_results <- tune_grid(
   resamples = train_folds,
   grid = rf_grid
 )
+```
 
+```{r}
 # Extract the best parameters
 best_params <- select_best(tune_results, metric = "accuracy")
 print(best_params)
+```
 
+```{r}
 # Finalize the workflow with the best parameters
 final_rf <- finalize_workflow(rf_workflow, best_params)
 
@@ -388,7 +404,9 @@ final_rf_fit <- fit(final_rf, data = train_data)
 
 # Evaluate the model on the test data
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
+```
 
+```{r}
 # Confusion matrix
 confusion_matrix <- predictions %>% 
   conf_mat(truth = bg_group, estimate = .pred_class)
@@ -400,6 +418,13 @@ accuracy <- predictions %>%
   filter(.metric == "accuracy")
 print(accuracy)
 
+```
+
+```{r}
+# Plot variable importance with top 10 important variables
+rf_model %>% 
+  vip() +
+  theme_minimal()
 ```
 
 
@@ -448,9 +473,4 @@ With an accuracy of 0.4058, the model performed better than the logistic regress
 
 We can also take a look at which variables were most important in explaining the variation in the `bg_group` variation. The household home type was the most important, followed by the number of public transit riders in the household and the number of walking trips taken the week of the survey.
 
-```{r}
-# Plot variable importance with top 10 important variables
-rf_model %>% 
-  vip() +
-  theme_minimal()
-```
+
