@@ -16,41 +16,43 @@ Vignette on classifying household density categories using logistic regression a
 
 ## Abstract
 
-Vignette abstract: a brief description in a few sentences of your vignette topic, example data, and **outcomes**.
+Vignette abstract: a brief description in a few sentences of your vignette topic, example data, and outcomes.
 
-This vignette explores how logistic regression and random forest models can classify household density categories (urban, suburban, exurban, rural) using data from the 2010-2012 California Household Travel Survey (CHTS). The dataset includes variables such as household demographics, travel behaviors, vehicle ownership, parking preferences, work schedules, toll lane usage, and active travel modes. By employing Principal Component Analysis (PCA), we reduce the dataset's high dimensionality, distilling numerous variables into a manageable set of key components that retain the most significant variance. Logistic regression, known for its interpretability, is then used to model the relationship between these principal components and household density categories, providing insights into how demographic and travel behavior variables influence classification. In contrast, random forest, an ensemble learning method, is employed to explore complex, non-linear relationships within the data, leveraging decision tree structures to enhance prediction accuracy.
+This vignette explores how logistic regression and random forest models can classify household density categories (urban, suburban, exurban, rural) using data from the 2010-2012 California Household Travel Survey (CHTS). The dataset includes variables such as household demographics, travel behaviors, vehicle ownership, parking preferences, work schedules, toll lane usage, and active travel modes. By employing Principal Component Analysis (PCA), we reduce the dataset's high dimensionality, distilling numerous variables into a manageable set of key components that retain the most significant variance. Logistic regression, known for its interpretability, is then used to model the relationship between these principal components and household density categories, providing insights into how demographic and travel behavior variables influence classification. In contrast, random forest, an ensemble learning method, is employed to explore complex, non-linear relationships within the data, leveraging decision tree structures to enhance prediction accuracy. In our logistic regression model, we obtain a rather low accuracy of around 33%, but in our random forest model, we obtain a much higher accuracy of \_\_\_\_\_.
 
 ## Repository Contents
 
 Repository contents: an explanation of the directory structure of the repository
 
--   `data` contains
+-   `Data` contains
 
-    -   `counties` - a folder storing and managing spatial data in geographic information systems (GIS) for geospatial data processing
+    -   `processed` contains
 
-    -   `DataDictionary.xlsx` - a data file guide spreadsheet detailing each of the files listed below, with descriptions of each variable and the possible values they can take
+        -   `personHHData_processed.Rds` - contains final data file used for our models
 
-    -   `hh_bgDensity.Rds` - contains cleaned block group density data that characterizes the urbanicity of areas surrounding the homes of CHTS respondents
+    -   `raw` contains
 
-    -   `HHData_111A.Rds` - contains cleaned household-level demographics, survey date, and home county information
+        -   `counties` - a folder storing and managing spatial data in geographic information systems (GIS) for geospatial data processing
 
-    -   `PersonData_111A.Rds` - contains cleaned per-person data, including basic demographics, employment/student status, and travel behavior variables
+        -   `DataDictionary.xlsx` - a data file guide spreadsheet detailing each of the files listed below, with descriptions of each variable and the possible values they can take
 
-    -   `personHHData` - contains cleaned merged dataset
+        -   `hh_bgDensity.Rds` - contains cleaned block group density data that characterizes the urbanicity of areas surrounding the homes of CHTS respondents
+
+        -   `HHData_111A.Rds` - contains cleaned household-level demographics, survey date, and home county information
+
+        -   `PersonData_111A.Rds` - contains cleaned per-person data, including basic demographics, employment/student status, and travel behavior variables
 
 -   `scripts` contains
 
-    -   `PCA` contains principal component analysis, logistic regression, and random forest
+    -   `drafts` - a folder with scripts of each member's progress throughout the project
 
-    -   `EDA` contains exploratory data analysis of the data
-
-    -   a script with line annotations
-
--   `vignette` contains the final vignette document
+    -   `vignette-script.R` - the final vignette script with line annotations
 
 -   `img` contains
 
-    -   
+-   `vignette.qmd` - the final vignette document
+
+-   `vignette.html` - the final vignette document rendered in html format
 
 ## Reference List
 
@@ -77,5 +79,3 @@ Reference list: 2 or more references to learn more about your topic.
 -   Random Forest Model
 
     -   [Random Forest Algorithm in Machine Learning](https://www.geeksforgeeks.org/random-forest-algorithm-in-machine-learning/)
-
-A typical README file would also contain instructions on use and instructions on contributing to the repository.
