@@ -369,10 +369,9 @@ set.seed(14531)
 
 #clean data
 rf_data <- data %>% 
-  select(-County, -CTFIP, -MPO, -City, -bg_density) %>% 
+  select(-County, -CTFIP, -MPO, -City, -bg_density, -hhid) %>% 
   mutate(DisLicensePlt = as.factor(ifelse(is.na(DisLicensePlt), 'Not Disabled', DisLicensePlt)),
-  SchoolMode = as.factor(ifelse(is.na(SchoolMode), 'Not in School', SchoolMode)),
-  WorkMode = as.factor(ifelse(is.na(WorkMode), 'Not Working', SchoolMode))) %>% 
+  SchoolMode = as.factor(ifelse(is.na(SchoolMode), 'Not in School', SchoolMode))) %>% 
   na.omit()
 ```
 
@@ -434,16 +433,17 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
                         levels = 5)
 ```
 
-
 ### Step 6: Tune the Model
 
-```{r}
+```{r, eval = FALSE}
 # Tune the model
 tune_results <- tune_grid(
   rf_workflow,
   resamples = train_folds,
   grid = rf_grid
 )
+
+#Save the results in RData File
 save(tune_results, file = "rfmodels.rda")
 ```
 
@@ -452,6 +452,8 @@ save(tune_results, file = "rfmodels.rda")
 Now that we looked through the different parameter combinations, we want to extract the parameters that led to the most accurate model and finalize the model with those parameters. The best parameters can be seen below:
 
 ```{r}
+#Load back in RData file
+load("rfmodels.rda")
 # Extract the best parameters
 best_params <- select_best(tune_results, metric = "accuracy")
 print(best_params)
@@ -468,6 +470,8 @@ final_rf_fit <- fit(final_rf, data = train_data)
 
 # Evaluate the model on the test data
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
+
+head(predictions)
 ```
 
 ### Step 8: Evaluate the model
