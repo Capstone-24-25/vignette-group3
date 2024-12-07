@@ -33,7 +33,6 @@ data <- personHHData  %>%
   # Filter out observations for variables that have values of DK (respondents responded with Don't Know)
   # which take values of 9, 98, 998. Also filters out RF (respondent refused to answer) 
   # which takes values 9, 99, 999.
-
   filter(WorkDaysWk != 8 , WorkDaysWk !=9,
          TypicalHoursWk != 998, TypicalHoursWk!= 999,
          TransitTripsWk != 98, TransitTripsWk != 99,
@@ -78,9 +77,7 @@ data <- personHHData  %>%
 # Checks which columns are numeric 
 numeric_columns <- sapply(data, is.numeric)
 
-numeric_data <- data[, numeric_columns]
-
-numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
+numeric_data <- data[, numeric_columns] %>% select(-CTFIP, -bg_density)
 
 scaled_data <- scale(numeric_data)
 
