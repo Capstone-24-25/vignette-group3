@@ -8,13 +8,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   Perform exploratory data analysis
 
--   Reduce dimensionality using principal component analysis (PCA)
+-   Reduce dimensionality using principal component analysis
 
 -   Employ logistic regression using `glm()` and `multinom()`
 
--   Build a random forest model using cross-validation
+-   Building a random forest model using cross-validation
 
-We'll illustrate these strategies using the **California Household Travel Survey (CHTS)** dataset. We are interested in classifying the block group density variable `bg_group` which takes on values urban, suburban, exurban, and rural.
+We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
 ```{r, message=F, warning=F}
 # Loading necessary packages
@@ -89,7 +89,9 @@ data <- personHHData  %>%
 # Preprocess data
 numeric_columns <- sapply(data, is.numeric)
 
-numeric_data <- data[, numeric_columns] %>% select(-CTFIP, -bg_density)
+numeric_data <- data[, numeric_columns]
+
+numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
 
 scaled_data <- scale(numeric_data)
 
@@ -106,13 +108,13 @@ scaled_data_clean <- na.omit(scaled_data) %>%
 
 ## Exploratory Data Analysis
 
-Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since the data is geographically structured, we found it helpful to visualize it on a map. Since we are interested in classifying household density categories, we chose 2 variables, `Sum_PMT` and `Sum_Trips`, which intuitively may be significant in predicting our categories.
+Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since our data is geographically structured, we found it helpful to visualize our data on a map.
 
-### Total Distance by Residential Area
+### Static Map
 
 ```{r, message=F, warning=F}
-county_bg_aggreg <- personHHData %>% 
-  group_by(County, CTFIP, bg_group) %>% 
+county_bg_aggreg <- data %>% 
+  group_by(County, CTFIP, bg_group) %>%  # group by county, CTFIP, and also bg_group
   mutate(count = n()) %>% 
   summarise_at(vars(-hhid), mean)
 
@@ -132,15 +134,15 @@ county_bg_all <- county_bg_aggreg %>%
 ggplot(county_bg_all) +
   geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") +
   scale_fill_distiller(palette = "YlGnBu", direction = 1) +
-  facet_wrap(vars(bg_group), nrow = 2) +  
+  facet_wrap(vars(bg_group), nrow = 2) +  # multi-panel plots using facet_wrap(), plot in 2 rows
   ggtitle("Total PMT in California at County-level") + 
   theme_void() +
   theme(legend.position="bottom")
 ```
 
-This map shows the total distance traveled by county for each of the categories. The grey counties represent missing data. There tends to be more travel in rural or exurban areas compared to suburban or urban areas. This makes sense as employees in those areas may find themselves needing to compute to cities for work and thus travel longer distances.
+These maps show the total distance traveled by country. The grey counties represent missing data.
 
-### Total Number of Trips by Residential Area
+### Sum Trips by Residential Area
 
 ```{r, message=F, warning=F}
 urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
@@ -162,9 +164,7 @@ rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
 latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = "all")
 ```
 
-This dynamic visual represents the number of trips per county by household density categories (urban, suburban, exurban, and rural). The trend is that suburban and exurban areas tend to have lower number of trips taken. This intuitively also makes sense as those places may find themselves needing to combine trips since they are not close enough to the city.
-
-Based on our EDA, we plan to include these two variables in our predictive feature set. However, we will later analyze the PCA loadings to assess their contributions to the principal components and validate this decision.
+This visual represents the number of trips per county by household density categories (urban, suburban, exurban, and rural).
 
 ## Data Partitioning
 
@@ -199,22 +199,6 @@ test_features  <- data.frame(lapply(test_features, as.numeric))
 
 To reduce the dimensionality of the dataset, we employ PCA.
 
-Principal Component Analysis (PCA) is a dimensionality reduction technique that transforms data into fewer uncorrelated components (principal components) while retaining most of the variance.
-
-PCA can be used for:
-
--   Dimensionality Reduction: improves model efficiency by reducing the number of features
-
--   Noise Filtering: discards low-variance features that don't add much value
-
--   Visualization: projects high-dimensional data into 2D or 3D for better pattern recognition
-
-PCA Limitations:
-
--   Captures only linear patterns
-
--   New components may be harder to interpret since they combine original features
-
 #### Step 1: Perform PCA on training data
 
 ```{r}
@@ -238,9 +222,7 @@ colnames(training_projected) <- paste0("PC", 1:ncol(training_projected))
 
 #### Step 2: Visualizing variance explained by principal components
 
-First, determine the optimal number of principal components to retain based on their respective variance. We set a threshold of 80%, ensuring the selected PCs capture at least 80% of the total variance in the dataset.
-
-We will visualize the transformed data to assess patterns in the reduced feature space.
+First, determine how many principal components to retain based on their respective variance.
 
 ```{r}
 # Explained variance plot
@@ -271,8 +253,6 @@ plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
 
 #### Step 3: Project testing data onto training PCA
 
-This step ensures consistency between training and testing data representations for subsequent modeling.
-
 ```{r}
 # Set seed
 set.seed(14531)
@@ -291,27 +271,11 @@ test_projected <- reproject_fn(test_features_matrix, train_svd)
 
 Now, the dataset has been transformed.
 
-## Multinomial Logistic Regression
+## Logistic Regression
 
 Now that we have reduced the dimensionality of the dataset, we can feed the transformed data into the logistic regression model.
 
-Multinomial logistic regression is an extension of binary logistic regression designed to handle multiple classes. This model works by estimating the log-odds of the different classes relative to a baseline class, and for each observation, it predicts the class whose log-odds of occurrence is the highest.
-
-Benefits of Logistic Regression:
-
--   Simplicity and Interpretability: the coefficients can give insights into the relationship between the features and the predicted class
-
--   Probabilistic Output: provides probabilities useful for decision-making
-
--   Efficiency: doesn't require too much computational power compared to more complex models
-
-Challenges of Logistic Regression:
-
--   Class Overlap: if the different classes overlap heavily in the reduced feature space, the linear decision boundary assumed by logistic regression might not be effective in separating the classes
-
--   Model Limitations: Logistic regression assumes that the predictors are independent and linearly related to the log-odds of the predictor variable
-
-#### Step 1: Get the reduced PCA data that you will feed into logistic regression model
+### Step 1: Get the reduced PCA data that you will feed into logistic regression model
 
 ```{r}
 # Select 12 PCs for training and testing data
@@ -325,7 +289,7 @@ reduced_training <- cbind(training_projected_reduced, bg_group = train_labels$bg
 reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_labels$bg_group)
 ```
 
-#### Step 2: Fit logistic regression model with the PCA reduced training data
+### Step 2: Fit logistic regression model with the PCA reduced training data
 
 ```{r}
 # fit model to predict bg_group using all predictors on PCA reduced training data
@@ -359,18 +323,6 @@ As you can see, the low accuracy indicates that PCA might not be the best approa
 Now we aim to find out why the logistic regression model is failing. Since logistic regression models the log-odds of the outcome as a linear combination of the predictors, the model assumes a linear relationship between these items. If the relationship between the predictors and the log-odds is non-linear, the logistic regression model may not perform well, which is demonstrated in the case of this dataset. Let's check the linearity assumptions to further show this.
 
 ```{r}
-# PC1 vs PC2 with class separation
-ggplot(pca_df, aes(x = PC1, y = PC2, color = bg_group)) +
-  geom_point(size = 2) +
-  labs(title = "PC1 vs PC2 Colored by bg_group",
-       x = "Principal Component 1",
-       y = "Principal Component 2") +
-  theme_minimal()
-```
-
-This plot illustrates the reduced feature space using the first two principal components. We see a clear overlap between classes and non-linear relationships, which means that the linear combination of features through PCA does not separate classes in a clear and simple way. This suggests that PCA may not fully capture the complexities of the data, making it challenging to use linear models like logistic regression to classify the data accurately.
-
-```{r}
 # Extract non PCA training data
 training_logreg <- training(partitions)
 
@@ -394,15 +346,11 @@ nonlinear_plot <- ggplot(training_sample, aes(x = WorkDaysWk, y = predicted_logo
 nonlinear_plot
 ```
 
-Additionally, from observing the plot above, it is clear that the relationship between the predicted log odds and a predictor, `WorkDaysWk`, is non-linear. We use the non-PCA data to test the linearity assumption because the principal components no longer represent the original features in a directly interpretable way. If we want to see if each predictor has a linear relationship with the log odds of the outcome, we use the non transformed data. In addition, we simplify the problem to a binary classification so that we can focus on how the relationship between a predictor and the log-odds of that outcome behaves, giving us a clearer, more interpretable plot for testing the linearity assumption.
+From observing the plot above, it is clear that the relationship between the predicted log odds and a predictor, `WorkDaysWk`, is non-linear. We use the non-PCA data to test the linearity assumption because the principal components no longer represent the original features in a directly interpretable way. If we want to see if each predictor has a linear relationship with the log odds of the outcome, we use the non transformed data. In addition, we simplify the problem to a binary classification so that we can focus on how the relationship between a predictor and the log-odds of that outcome behaves, giving us a clearer, more interpretable plot for testing the linearity assumption.
 
-Now that we have concluded that this dataset fails the linearity assumption, we know that it would be best modeled by other classification models, like the random forest model, which is what we will fit next.
+Now that we have concluded that this dataset fails the linearity assumption, we know that it would be best modeled by other classification models, which is what we will fit next.
 
 ## Random Forest
-
-Random Forest is an ensemble learning method that combines the predictions of multiple individual decision trees to make a final prediction. It is a flexible and powerful algorithm with the idea of building a large number of decision trees during training and then aggregating their predictions to improve accuracy and reduce overfitting.
-
-For our data, random forest model is a good choice because they are able to model complex, non-linear relationships between features and the predictor. They are also effective even in high-dimensional spaces and can handle large numbers of features, where the most relevant features are automatically focused on when building the trees.
 
 ### Step 1: Set up the data for Random Forest modelling
 
@@ -413,7 +361,7 @@ For Random Forest modelling, we want to use the original clean dataset, from bef
 colSums(is.na(data))
 ```
 
-From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate), `SchoolMode` (how the respondent travels to school), and WorkMode (how the respondent travels to work). We will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively. We will also remove any location related variables, as those are highly correlated to `bg_group` and remove any other rows with missing values.
+From the table, you will see there is a high amount of missing data in DisLicensePlt (if the respondent has a disabled license plate), SchoolMode (how the respondent travels to school), and WorkMode (how the respondent travels to work). We will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively. We will also remove any location related variables, as those are highly correlated to `bg_group` and remove any other rows with missing values.
 
 ```{r}
 # Set seed for reproducibility
@@ -455,7 +403,7 @@ rf_spec <- rand_forest(
   trees = tune(),
   min_n = tune()
 ) %>% 
-  set_engine("randomForest") %>% 
+  set_engine("ranger") %>% 
   set_mode("classification")
 ```
 
@@ -486,6 +434,7 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
                         levels = 5)
 ```
 
+
 ### Step 6: Tune the Model
 
 ```{r}
@@ -495,6 +444,7 @@ tune_results <- tune_grid(
   resamples = train_folds,
   grid = rf_grid
 )
+save(tune_results, file = "rfmodels.rda")
 ```
 
 ### Step 7: Finalize the model
@@ -545,7 +495,7 @@ rf_model %>%
   theme_minimal()
 ```
 
-# Conclusion
+# Conlcusion
 
 In conclusion, this project aimed to classify households into four classes urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of \_\_\_\_\_\_\_\_\_\_\_, which proves that this multinomial classification problem was a better fit for decision tree models like random forest.
 
