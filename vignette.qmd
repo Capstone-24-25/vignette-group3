@@ -299,7 +299,7 @@ log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 Let's see how well our model was able to classify the different household densities
 
 ```{r}
-# generate predictions for the test dataset using the fitted log reg model
+# Generate predictions for the test dataset using the fitted log reg model
 logreg_predictions <- predict(log_regmodel, newdata = reduced_training)
 ```
 
