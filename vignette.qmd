@@ -499,7 +499,7 @@ rf_model %>%
   theme_minimal()
 ```
 
-# Conlcusion
+# Conclusion
 
 In conclusion, this project aimed to classify households into four classes urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of \_\_\_\_\_\_\_\_\_\_\_, which proves that this multinomial classification problem was a better fit for decision tree models like random forest.
 
