@@ -509,7 +509,7 @@ Now that we looked through the different parameter combinations, we want to extr
 
 ```{r}
 #Load back in RData file
-load("data/tune_result.rda")
+load("data/processed/tune_result.rda")
 # Extract the best parameters
 best_params <- select_best(tune_result, metric = "accuracy")
 print(best_params)
