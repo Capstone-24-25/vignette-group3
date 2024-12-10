@@ -276,7 +276,7 @@ reduced_pcs <- which(cumulative_variance >= threshold)[1]
 cat("Number of PCs to retain:", reduced_pcs)
 ```
 
-Based on the scree plot and cumulative variance plot, we have chosen to retain 12 PCs with an 80% variance threshold. 
+Based on the scree plot and cumulative variance plot, we have chosen to retain 12 PCs with an 80% variance threshold.
 
 #### Step 3: Project testing data onto training PCA
 
@@ -486,7 +486,7 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
 
 #### Step 6: Tune the Model
 
-We will tune the model on the grid we set up with the cross validation folds. Running a random forest model can take a long time, so we will save our tune results to an RData file to prevent continuously run the model tuning.
+We will tune the model on the grid we set up with the cross validation folds. Running a random forest model can take a long time, so we will save our tune results to an RData file to prevent continuously running the model tuning.
 
 ```{r, eval = FALSE}
 set.seed(14531)
