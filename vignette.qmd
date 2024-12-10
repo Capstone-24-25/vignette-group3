@@ -366,9 +366,9 @@ To implement this, we will be using k-fold cross-validation, which will take the
 
 We will also tune the random forest model parameters to ensure we get the most accurate model. The parameters include: `mtry` which is the number of variables randomly sampled at each split, `trees` which is the number of trees in the random forest, and `min_n` which is the minimum number of observations in each node.
 
-### Step 1: Set up the data for Random Forest modelling
+### Step 1: Set up the data for Random Forest modeling
 
-For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
+For Random Forest modeling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
 
 ```{r}
 #look at missing data
@@ -517,6 +517,8 @@ final_rf_fit %>%
   vip() +
   theme_minimal()
 ```
+
+According to the variance important plot, the most important variables, in order, are `Sum_PMT`, `Age`, `HH_nTrips`, `DriveAlone_Dist`, `WalkTripsWk`, `HH_income`, `TypicalHoursWk`, `DOW`, `HH_nBikes`, and `Sum_Trips`. However, we had an accuracy of 44.3%, so this plot might not be representative of true feature importance.
 
 # Conclusion
 
