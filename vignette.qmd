@@ -20,7 +20,7 @@ We'll illustrate these strategies using the **California Household Travel Survey
 
 ## Data Cleaning
 
-First, we want to load any necessary packages and our 3 datasets into R Studio. We will then merge all 3 datasets into 1 dataframe and convert variables into factors as needed while also filtering out numeric variables that have numbers that represent NAs.
+First, we want to load any necessary packages and our 3 datasets into RStudio. We will then merge all 3 datasets into 1 dataframe and convert variables into factors as needed while also filtering out numeric variables that have numbers that represent NAs.
 
 ```{r, message=FALSE, warning=FALSE}
 # Loading necessary packages
@@ -149,7 +149,7 @@ ggplot(county_bg_all) +
   theme(legend.position="bottom")
 ```
 
-This map shows the total distance traveled by county for each of the categories. The grey counties represent missing data. There tends to be more travel in rural or exurban areas compared to suburban or urban areas. This makes sense as employees in those areas may find themselves needing to compute to cities for work and thus travel longer distances.
+This map shows the total distance traveled by county for each of the categories. The grey counties represent missing data. There tends to be more travel in rural or exurban areas compared to suburban or urban areas. This makes sense as employees in those areas may find themselves needing to commute to cities for work and thus travel longer distances.
 
 #### Total Number of Trips by Residential Area
 
