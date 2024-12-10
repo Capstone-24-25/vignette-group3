@@ -352,6 +352,12 @@ Now that we have concluded that this dataset fails the linearity assumption, we 
 
 ## Random Forest
 
+A random forest is a collection of decision trees where the output is determined by majority voting across the different trees. It can handle non-linear data and helps us understand complex patterns in data. It can also tell us which variables are most important to determining the response variables, which helps us understand the data.
+
+To implement this, we will be using k-fold cross-validation, which will take the training data, split it into *k* subsets, and alternate one subset as the validation fold and the rest as the training. This will help us build a better model and make sure it works well with unseen data.
+
+We will also tune the random forest model parameters to ensure we get the most accurate model. The parameters include: `mtry` which is the number of variables randomly sampled at each split, `trees` which is the number of trees in the random forest, and `min_n` which is the minimum number of observations in each node.
+
 ### Step 1: Set up the data for Random Forest modelling
 
 For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
@@ -361,7 +367,7 @@ For Random Forest modelling, we want to use the original clean dataset, from bef
 colSums(is.na(data))
 ```
 
-From the table, you will see there is a high amount of missing data in DisLicensePlt (if the respondent has a disabled license plate), SchoolMode (how the respondent travels to school), and WorkMode (how the respondent travels to work). We will impute these missing values with 'Not Disabled', 'Not in School', and 'Not Working' respectively. We will also remove any location related variables, as those are highly correlated to `bg_group` and remove any other rows with missing values.
+From the table, you will see there is a high amount of missing data in DisLicensePlt (if the respondent has a disabled license plate) and SchoolMode (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School' respectively. We will also remove any location related variables, as those are deirectly correlated to `bg_group` and remove any other rows with missing values.
 
 ```{r}
 # Set seed for reproducibility
@@ -393,7 +399,7 @@ test_data <- testing(partitions)
 
 ### Step 3: Define the model
 
-Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `randomForest` engine and set the mode to classification.
+Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `ranger` engine since it runs the quickest and set the mode to classification.
 
 ```{r}
 # Specify the random forest model
@@ -402,7 +408,7 @@ rf_spec <- rand_forest(
   trees = tune(),
   min_n = tune()
 ) %>% 
-  set_engine("ranger") %>% 
+  set_engine("ranger",importance = "impurity") %>% 
   set_mode("classification")
 ```
 
@@ -435,27 +441,30 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
 
 ### Step 6: Tune the Model
 
+We will tune the model on the grid we set up with the cross validation folds. Running a random forest model can take a long time. We want to make sure to save our tune results to an RData file so that we don't have to continuously run the model tuning and take up time.
+
 ```{r, eval = FALSE}
+set.seed(14531)
 # Tune the model
-tune_results <- tune_grid(
+tune_result <- tune_grid(
   rf_workflow,
   resamples = train_folds,
   grid = rf_grid
 )
 
 #Save the results in RData File
-save(tune_results, file = "rfmodels.rda")
+save(tune_result, file = "tune_result.rda")
 ```
 
 ### Step 7: Finalize the model
 
-Now that we looked through the different parameter combinations, we want to extract the parameters that led to the most accurate model and finalize the model with those parameters. The best parameters can be seen below:
+Now that we looked through the different parameter combinations, we want to extract the parameters that led to the most accurate model and finalize the model with those parameters. We load back in our RData file with the model tuning results and use the `select_best` function to get the most accurate model. The best parameters can be seen below:
 
 ```{r}
 #Load back in RData file
-load("rfmodels.rda")
+load("tune_result.rda")
 # Extract the best parameters
-best_params <- select_best(tune_results, metric = "accuracy")
+best_params <- select_best(tune_result, metric = "accuracy")
 print(best_params)
 ```
 
@@ -476,7 +485,7 @@ head(predictions)
 
 ### Step 8: Evaluate the model
 
-Using a confusion matrix...
+Using a confusion matrix, we can see how many predictions the model got right and wrong for each `bg_group` level. We found that the model is best at predicting the Suburban group and the the Urban group. We can also calculate the accuracy metric, which we got 0.443 for this model.
 
 ```{r}
 # Confusion matrix
@@ -492,15 +501,17 @@ print(accuracy)
 
 ```
 
+We also want to take a look at the top 10 most important variables in influencing the model's predictions. This most important variables was the total number of miles the person traveled on the survey data, followed by age and the number of trips the household takes.
+
 ```{r}
 # Plot variable importance with top 10 important variables
-rf_model %>% 
+final_rf_fit %>% 
   vip() +
   theme_minimal()
 ```
 
 # Conclusion
 
-In conclusion, this project aimed to classify households into four classes urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of \_\_\_\_\_\_\_\_\_\_\_, which proves that this multinomial classification problem was a better fit for decision tree models like random forest.
+In conclusion, this project aimed to classify households into four classes urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of 44.3%, which proves that this multinomial classification problem was a better fit for decision tree models like random forest, but there is still room for improvement.
 
 Looking forward with this dataset, there are other models that could classify the observations into the four household density categories more accurately, such as supper vector machines, gradient boosted machines, or neural networks. These models could handle the more complex data and patterns that simpler models might not perform as well on. But if we wanted to continue with the random forest model, then more hyperparameter tuning could result in higher accuracy as well. Another aspect of this dataset that could lead to better classification could be to utilize the geospatial features of this dataset. These were explored in the EDA, but could be very helpful predictors for a model to use in the future with this dataset. Overall, by fitting two classification models to the CHTS dataset, there was a lot of important exploration uncovered about the patterns of this data.
