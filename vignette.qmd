@@ -369,20 +369,6 @@ As you can see, the low accuracy indicates that PCA might not be the best approa
 
 Now we aim to find out why the logistic regression model is failing. Since logistic regression models the log-odds of the outcome as a linear combination of the predictors, the model assumes a linear relationship between these items. If the relationship between the predictors and the log-odds is non-linear, the logistic regression model may not perform well, which is demonstrated in the case of this dataset. Let's check the linearity assumptions to further show this.
 
-```{r}
-# PC1 vs PC2 with class separation
-ggplot(pca_df, aes(x = PC1, y = PC2, color = bg_group)) +
-  geom_point(size = 2) +
-  labs(title = "PC1 vs PC2 Colored by bg_group",
-       x = "Principal Component 1",
-       y = "Principal Component 2") +
-  theme_minimal()
-```
-
-This plot illustrates the reduced feature space using the first two principal components. We see a clear overlap between classes and non-linear relationships, which means that the linear combination of features through PCA does not separate classes in a clear and simple way. This suggests that PCA may not fully capture the complexities of the data, making it challenging to use linear models like logistic regression to classify the data accurately.
-
-Additionally, from observing the plot above, it is clear that the relationship between the predicted log odds and a predictor, \`WorkDaysWk\`, is non-linear. We use the non-PCA data to test the linearity assumption because the principal components no longer represent the original features in a directly interpretable way. If we want to see if each predictor has a linear relationship with the log odds of the outcome, we use the non transformed data. In addition, we simplify the problem to a binary classification so that we can focus on how the relationship between a predictor and the log-odds of that outcome behaves, giving us a clearer, more interpretable plot for testing the linearity assumption.
-
 ```{r, message=FALSE, warning=FALSE}
 # Extract non PCA training data
 training_logreg <- training(partitions)
