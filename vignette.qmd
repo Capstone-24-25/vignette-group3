@@ -405,14 +405,14 @@ We will also tune the random forest model parameters to ensure we get the most a
 
 #### Step 1: Set up the data for Random Forest modeling
 
-For random forest modeling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
+For random forest modeling, we want to use the original clean dataset, from before the preprocessing for PCA. However, there is missing data that we need to handle:
 
 ```{r}
 #look at missing data
 colSums(is.na(data))
 ```
 
-From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate) and `SchoolMode` (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School' respectively. We will also remove any location related variables, as those are directly correlated to `bg_group` and remove any other rows with missing values.
+From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate) and `SchoolMode` (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School', respectively. We will also remove any location related variables, as those are directly correlated to `bg_group`, and remove any other rows with missing values.
 
 ```{r}
 # Set seed for reproducibility
@@ -428,7 +428,7 @@ rf_data <- data %>%
 
 #### Step 2: Data Partitioning
 
-Next we want to split the data into training and testing sets. We will use 80% of the data for training and 20% for testing.
+Next we want to split the data into training and testing sets. We will allocate 80% of the data for the training set and 20% for the testing set.
 
 ```{r}
 # Set seed for reproducibility
@@ -444,7 +444,7 @@ test_data <- testing(partitions)
 
 #### Step 3: Define the model
 
-Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `ranger` engine since it runs the quickest and set the mode to classification.
+Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values are the most optimal. We will use the `ranger` engine since it runs the quickest and set the mode to `classification`.
 
 ```{r}
 # Specify the random forest model
