@@ -343,7 +343,7 @@ reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_
 log_regmodel <- multinom(bg_group ~ ., data = reduced_training)
 ```
 
-Let's see how well our model was able to classify the different household densities
+Let's see how well our model was able to predict the different household densities:
 
 ```{r}
 # Generate predictions for the test dataset using the fitted log reg model
@@ -363,7 +363,7 @@ accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
 print(paste("Accuracy:", round(accuracy, 4)))
 ```
 
-As you can see, the low accuracy indicates that PCA might not be the best approach for the logistic regression model.
+As you can see, the low accuracy indicates that logistic regression might not be the best approach for this dataset. Let's test out the logistic regression assumptions to uncover why.
 
 #### Step 4: Linearity Assumption
 
@@ -407,14 +407,14 @@ We will also tune the random forest model parameters to ensure we get the most a
 
 #### Step 1: Set up the data for Random Forest modeling
 
-For Random Forest modeling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
+For random forest modeling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
 
 ```{r}
 #look at missing data
 colSums(is.na(data))
 ```
 
-From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate) and `SchoolMode` (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School' respectively. We will also remove any location related variables, as those are deirectly correlated to `bg_group` and remove any other rows with missing values.
+From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate) and `SchoolMode` (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School' respectively. We will also remove any location related variables, as those are directly correlated to `bg_group` and remove any other rows with missing values.
 
 ```{r}
 # Set seed for reproducibility
@@ -461,7 +461,7 @@ rf_spec <- rand_forest(
 
 #### Step 4: Define the workflow
 
-Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with bg_group as the response variable and all other variables in the dataset as predictors.
+Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with `bg_group` as the response variable and all other variables in the dataset as predictors.
 
 ```{r}
 # Define a workflow
@@ -488,7 +488,7 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
 
 #### Step 6: Tune the Model
 
-We will tune the model on the grid we set up with the cross validation folds. Running a random forest model can take a long time. We want to make sure to save our tune results to an RData file so that we don't have to continuously run the model tuning and take up time.
+We will tune the model on the grid we set up with the cross validation folds. Running a random forest model can take a long time, so we will save our tune results to an RData file to prevent continuously run the model tuning.
 
 ```{r, eval = FALSE}
 set.seed(14531)
@@ -532,7 +532,7 @@ head(predictions) %>% kable()
 
 #### Step 8: Evaluate the model
 
-Using a confusion matrix, we can see how many predictions the model got right and wrong for each `bg_group` level. We found that the model is best at predicting the Suburban group and the the Urban group. We can also calculate the accuracy metric, which we got 0.447 for this model.
+Using a confusion matrix, we can see how many predictions the model classified correctly and incorrectly for each `bg_group` level. We found that the model is best at predicting the Suburban group and the Urban group. After calculating the metrics for this model, we found that it had an accuracy of 0.447.
 
 ```{r}
 # Confusion matrix
@@ -548,7 +548,7 @@ print(accuracy)
 
 ```
 
-We also want to take a look at the top 10 most important variables in influencing the model's predictions. This most important variables was the total number of miles the person traveled on the survey data, followed by age and the number of trips the household takes.
+We also want to take a look at the top 10 most influential variables to the model's predictions. The most important variable was the total number of miles the person traveled on the survey data, followed by age, and then the number of trips the household takes.
 
 ```{r}
 # Plot variable importance with top 10 important variables
@@ -559,7 +559,7 @@ final_rf_fit %>%
 
 According to the variance important plot, the most important variables, in order, are `Sum_PMT`, `Age`, `HH_nTrips`, `DriveAlone_Dist`, `WalkTripsWk`, `HH_income`, `TypicalHoursWk`, `DOW`, `HH_nBikes`, and `Sum_Trips`. However, we had an accuracy of 44.3%, so this plot might not be representative of true feature importance.
 
-We used Random Forest to build a classification model aimed at predicting the `bg_group` based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including `mtry`, `trees`, and `min_n`, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions---such as total miles traveled, age, and the number of household trips---the overall accuracy on the test set was lower than expected (0.447). This is in stark contrast to the numeric-only model that yielded an impressive accuracy of 0.97.
+We used random forest to build a classification model aimed at predicting the `bg_group` based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including `mtry`, `trees`, and `min_n`, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions---such as total miles traveled, age, and the number of household trips---the overall accuracy on the test set was lower than expected (0.447). This is in stark contrast to the numeric-only model that yielded an impressive accuracy of 0.97.
 
 This discrepancy suggests that the inclusion of categorical variables, while enriching the model with more detailed features, may have introduced complexity that lowered predictive performance. Potential factors include the handling of missing data, the level of feature interactions, and how the model managed high-cardinality categorical variables.
 
