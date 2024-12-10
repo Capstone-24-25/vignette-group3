@@ -17,8 +17,7 @@ library(randomForest)
 library(vip)
 library(SparseM)
 library(Matrix)
-
-
+library(kableExtra)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
@@ -26,14 +25,9 @@ HHData <- read_rds('./Data/raw/HHData_111A.Rds')
 hh_bgDensity <- read_rds('./Data/raw/hh_bgDensity.Rds')
 county_shp <- st_read("./Data/raw/counties/counties.shp")
 
-
-
 # Merge datasets
 personHHData <- left_join(PersonData, HHData) %>%
   left_join(hh_bgDensity)
-
-
-
 
 # Pre-process the combined dataset `personHHData`
 data <- personHHData  %>% 
@@ -78,17 +72,19 @@ mutate(HH_anyTransitRider = as.factor(HH_anyTransitRider),
        hhid = paste(hhid, pnum),
        SchoolMode = as.factor(SchoolMode),
        WorkMode = as.factor(WorkMode),
-       EducationCompl = as.factor(EducationCompl))
+       EducationCompl = as.factor(EducationCompl)) %>% 
+  # Deselect pnum variable
+  select(-pnum)
+
 
 ## Preprocessing data for PCA
-
 # Check which columns are numeric
 numeric_columns <- sapply(data, is.numeric)
 
 # Filter into numeric data
 # Take out unnecessary numeric columns
-numeric_data <- data[, numeric_columns]
-numeric_data <- numeric_data %>% select(-CTFIP, -bg_density)
+numeric_data <- data[, numeric_columns] %>% 
+  select(-CTFIP, -bg_density)
 
 # Scale the numeric data
 scaled_data <- scale(numeric_data)
@@ -102,14 +98,13 @@ bg_group <- as.data.frame(data$bg_group)
 # Update the `scaled_data` object to a data frame with columns `hhid`, `bg_group`, and `scaled_data`
 scaled_data <- cbind(hhid, bg_group, scaled_data) %>% 
 # Re-assign `bg_group` variable to fix an error
-mutate(bg_group = data$bg_group)
+  mutate(bg_group = data$bg_group)
 
 # Re-assign the `scaled_data` object into `scaled_data_clean` with final clean data
 scaled_data_clean <- na.omit(scaled_data) %>% # Remove missing observations
 as.data.frame() %>% # Transform into a data frame
 # Remove repeated variable
-select(-`data$bg_group`)
-
+  select(-`data$bg_group`)
 
 
 ## Exploratory Data Analysis
@@ -119,23 +114,26 @@ county_bg_aggreg <- data %>%
 group_by(County, CTFIP, bg_group) %>%  # group by `county`, `CTFIP`, and also `bg_group`
 mutate(count = n()) %>% 
 summarise_at(vars(-hhid), mean)
+
 county_bg_shp <- county_shp %>% 
 merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
 left_join(county_bg_aggreg)
 
-# get the CA county data
+# Get the CA county data
 county <- ggplot2::map_data("county", region = "california")
 county_bg <- merge(county, data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural")))
 county_bg_all <- county_bg_aggreg %>% 
-mutate(subregion = tolower(County)) %>% 
-full_join(county_bg, by = c("subregion", "bg_group"))
-ggplot(county_bg_all) +
-geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") +
-scale_fill_distiller(palette = "YlGnBu", direction = 1) +
-facet_wrap(vars(bg_group), nrow = 2) +  # multi-panel plots using facet_wrap(), plot in 2 rows
-ggtitle("Total PMT in California at County-level") + 
-theme_void() +
-theme(legend.position="bottom")
+  mutate(subregion = tolower(County)) %>% 
+  full_join(county_bg, by = c("subregion", "bg_group"))
+
+# Plot total distance by residential area
+ggplot(county_bg_all) + 
+  geom_polygon(aes(x = long, y = lat, group = subregion, fill = Sum_PMT), colour = "white") + 
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) + 
+  facet_wrap(vars(bg_group), nrow = 2) +  # multi-panel plots using facet_wrap(), plot in 2 rows
+  ggtitle("Total PMT in California at County-level") + 
+  theme_void() +
+  theme(legend.position="bottom")
 
 # Sum of Trips by Residential Area Plot
 urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
@@ -154,7 +152,6 @@ latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = 
 
 
 ## Data Partitioning
-
 # Set seed for reproducibility
 set.seed(14531)
 
@@ -163,20 +160,23 @@ partitions <- scaled_data_clean %>%
 initial_split(prop = 0.8)
 
 # Separate id and response variable in testing data
-test_dtm <- testing(partitions) %>% 
-select(-hhid, -bg_group)
+test_features <- testing(partitions) %>% 
+  select(-hhid, -bg_group)
 test_labels <- testing(partitions) %>% 
-select(hhid, bg_group)
+  select(hhid, bg_group)
 
 # Separate id and response variable in training data
-train_dtm <- training(partitions) %>% 
-select(-hhid, -bg_group)
+train_features <- training(partitions) %>% 
+  select(-hhid, -bg_group)
 train_labels <- training(partitions) %>%
-select(hhid, bg_group)
+  select(hhid, bg_group)
+
+# Convert to numeric data type
+train_features <- data.frame(lapply(train_features, as.numeric))
+test_features  <- data.frame(lapply(test_features, as.numeric))
 
 
 ## Principal Component Analysis 
-
 # Set seed for reproducibility
 set.seed(14531)
 
@@ -232,9 +232,7 @@ return(test_projected)
 test_projected <- reproject_fn(test_features_matrix, train_svd)
 
 
-
 ## Logistic Regression
-
 # Get the reduced PCA data that you will feed into logistic regression model
 # Select 12 PCs for training and testing data
 training_projected_reduced <- training_projected[, 1:reduced_pcs]
@@ -261,6 +259,27 @@ conf_matrix <- table(Predicted = logreg_predictions, Actual = reduced_training$b
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
 print(paste("Accuracy:", round(accuracy, 4)))
 
+# Extract non PCA training data
+training_logreg <- training(partitions)
+
+# Select sub sample of data to test assumption on
+training_sample <- training_logreg %>%
+  sample_n(1000)
+
+# Create binary response variable
+training_sample$bg_group_binary <- ifelse(training_sample$bg_group == "1", 1, 0)
+
+# Fit binary logistic regression on one predictor
+logreg_binary <- glm(bg_group_binary ~ WorkDaysWk, data = training_sample, family = binomial)
+
+# Predict log odds for each observation using link = 'logit' argument
+predicted_logodds <- predict(logreg_binary, type = "link",  link = "logit")
+
+# Plot relationship between predictor and predicted log odds of outcome
+nonlinear_plot <- ggplot(training_sample, aes(x = WorkDaysWk, y = predicted_logodds)) + 
+  geom_point() + 
+  geom_smooth(method = "loess")  
+nonlinear_plot
 
 
 ## Random Forest
@@ -275,9 +294,9 @@ colSums(is.na(data))
 set.seed(14531)
 
 # Preprocess the original dataset differently for random forest ie. take out columns 
-      # that are not needed for random forest
+# that are not needed for random forest
 
-# fill in some missing values then take out any other missing values
+# Fill in some missing values then take out any other missing values
 rf_data <- data %>% 
 select(-County, -CTFIP, -MPO, -City, -bg_density, -hhid) %>% 
 mutate(DisLicensePlt = as.factor(ifelse(is.na(DisLicensePlt), 'Not Disabled', DisLicensePlt)),
@@ -330,8 +349,15 @@ resamples = train_folds,
 grid = rf_grid
 )
 
+#Save the results in RData File
+save(tune_result, file = "data/processed/tune_result.rda")
+
+#Load back in RData file
+load("data/processed/tune_result.rda")
+
 # Extract the best parameters for the model using accuracy as the metric
 best_params <- select_best(tune_results, metric = "accuracy")
+print(best_params)
 
 # Finalize the workflow with the best parameters
 final_rf <- finalize_workflow(rf_workflow, best_params)
@@ -342,6 +368,7 @@ final_rf_fit <- fit(final_rf, data = train_data)
 # Get predictions on the test data 
 # combine with the original test data to see how well the model performs
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
+head(predictions) %>% kable()
 
 # RF Model Evaluation
 # Use confusion matrix to see how well the model classified the different household densities
@@ -355,6 +382,9 @@ print(confusion_matrix)
 accuracy <- predictions %>% 
   metrics(truth = bg_group, estimate = .pred_class) %>% 
   filter(.metric == "accuracy")
+
+# Display accuracy 
+print(accuracy)
 
 # Plot variable importance to see the top 10 variables that had the most impact on the model
 final_rf_fit %>% 

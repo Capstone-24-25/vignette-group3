@@ -185,7 +185,6 @@ Before fitting models, it is imperative to split our data into a training set an
 # Set seed
 set.seed(14531)
 
-data_clean  <- data.frame(lapply(scaled_data_clean, as.numeric))
 # Partition data
 partitions <- scaled_data_clean %>% 
   initial_split(prop = 0.8)
@@ -276,7 +275,7 @@ reduced_pcs <- which(cumulative_variance >= threshold)[1]
 cat("Number of PCs to retain:", reduced_pcs)
 ```
 
-Based on the scree plot and cumulative variance plot, we have chosen to retain 12 PCs with an 80% variance threshold. 
+Based on the scree plot and cumulative variance plot, we have chosen to retain 12 PCs with an 80% variance threshold.
 
 #### Step 3: Project testing data onto training PCA
 
