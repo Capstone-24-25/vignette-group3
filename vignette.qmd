@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   Build a random forest model using cross-validation
 
-We'll illustrate these strategies using the \*\*California Household Travel Survey (CHTS)\*\* dataset. We are interested in classifying the block group density variable \`bg_group\` which takes on values urban, suburban, exurban, and rural.
+We'll illustrate these strategies using the **California Household Travel Survey (CHTS)** dataset. We are interested in classifying the block group density variable `bg_group` which takes on values urban, suburban, exurban, and rural.
 
 ![](imgs/household-density.jpg)
 
@@ -119,7 +119,7 @@ scaled_data_clean <- na.omit(scaled_data) %>%
 
 Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since the data is geographically structured, we found it helpful to visualize it on a map. Since we are interested in classifying household density categories, we chose 2 variables, \`Sum_PMT\` and \`Sum_Trips\`, which intuitively may be significant in predicting our categories.
 
-### Total Distance by Residential Area
+#### Total Distance by Residential Area
 
 ```{r, message=F, warning=F}
 county_bg_aggreg <- personHHData %>% 
@@ -151,7 +151,7 @@ ggplot(county_bg_all) +
 
 This map shows the total distance traveled by county for each of the categories. The grey counties represent missing data. There tends to be more travel in rural or exurban areas compared to suburban or urban areas. This makes sense as employees in those areas may find themselves needing to compute to cities for work and thus travel longer distances.
 
-### Total Number of Trips by Residential Area
+#### Total Number of Trips by Residential Area
 
 ```{r, message=F, warning=F}
 urban_TripMap <-  mapview(filter(county_bg_shp, bg_group == "Urban"),
@@ -405,7 +405,7 @@ To implement this, we will be using k-fold cross-validation, which will take the
 
 We will also tune the random forest model parameters to ensure we get the most accurate model. The parameters include: `mtry` which is the number of variables randomly sampled at each split, `trees` which is the number of trees in the random forest, and `min_n` which is the minimum number of observations in each node.
 
-### Step 1: Set up the data for Random Forest modeling
+#### Step 1: Set up the data for Random Forest modeling
 
 For Random Forest modeling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
 
@@ -428,7 +428,7 @@ rf_data <- data %>%
   na.omit()
 ```
 
-### Step 2: Data Partitioning
+#### Step 2: Data Partitioning
 
 Next we want to split the data into training and testing sets. We will use 80% of the data for training and 20% for testing.
 
@@ -444,7 +444,7 @@ train_data <- training(partitions)
 test_data <- testing(partitions)
 ```
 
-### Step 3: Define the model
+#### Step 3: Define the model
 
 Now, we want to specify what kind of model we want to run with `rand_forest()`. We want to set the parameters, `mtry`, `trees`, and `min_n`, to `tune()`, so that we can later use cross-validation to test which values is the most optimal to set the parameters to. We will use the `ranger` engine since it runs the quickest and set the mode to classification.
 
@@ -459,7 +459,7 @@ rf_spec <- rand_forest(
   set_mode("classification")
 ```
 
-### Step 4: Define the workflow
+#### Step 4: Define the workflow
 
 Next, we set up the workflow and add in the model we defined previously. We will also add the formula, with bg_group as the response variable and all other variables in the dataset as predictors.
 
@@ -470,7 +470,7 @@ rf_workflow <- workflow() %>%
   add_formula(bg_group ~ .)
 ```
 
-### Step 5: Set up cross-validation
+#### Step 5: Set up cross-validation
 
 Now we want to set up cross-validation with 5 folds. We also want to make sure we stratify the data by `bg_group` to ensure that each fold has an equal distribution of the different household densities. Then, we also set up a grid to test different combinations of the parameters `mtry`, `trees`, and `min_n` with 5 levels.
 
@@ -486,7 +486,7 @@ rf_grid <- grid_regular(mtry(range = c(5, 30)),
                         levels = 5)
 ```
 
-### Step 6: Tune the Model
+#### Step 6: Tune the Model
 
 We will tune the model on the grid we set up with the cross validation folds. Running a random forest model can take a long time. We want to make sure to save our tune results to an RData file so that we don't have to continuously run the model tuning and take up time.
 
@@ -503,7 +503,7 @@ tune_result <- tune_grid(
 save(tune_result, file = "data/tune_result.rda")
 ```
 
-### Step 7: Finalize the model
+#### Step 7: Finalize the model
 
 Now that we looked through the different parameter combinations, we want to extract the parameters that led to the most accurate model and finalize the model with those parameters. We load back in our RData file with the model tuning results and use the `select_best` function to get the most accurate model. The best parameters can be seen below:
 
@@ -530,9 +530,9 @@ predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
 head(predictions) %>% kable()
 ```
 
-### Step 8: Evaluate the model
+#### Step 8: Evaluate the model
 
-Using a confusion matrix, we can see how many predictions the model got right and wrong for each `bg_group` level. We found that the model is best at predicting the Suburban group and the the Urban group. We can also calculate the accuracy metric, which we got 0.443 for this model.
+Using a confusion matrix, we can see how many predictions the model got right and wrong for each `bg_group` level. We found that the model is best at predicting the Suburban group and the the Urban group. We can also calculate the accuracy metric, which we got 0.447 for this model.
 
 ```{r}
 # Confusion matrix
@@ -559,12 +559,12 @@ final_rf_fit %>%
 
 According to the variance important plot, the most important variables, in order, are `Sum_PMT`, `Age`, `HH_nTrips`, `DriveAlone_Dist`, `WalkTripsWk`, `HH_income`, `TypicalHoursWk`, `DOW`, `HH_nBikes`, and `Sum_Trips`. However, we had an accuracy of 44.3%, so this plot might not be representative of true feature importance.
 
-We used Random Forest to build a classification model aimed at predicting the `bg_group` based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including mtry, trees, and min_n, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions---such as total miles traveled, age, and the number of household trips---the overall accuracy on the test set was lower than expected (0.443). This is in stark contrast to the numeric-only model that yielded an impressive accuracy of 0.97.
+We used Random Forest to build a classification model aimed at predicting the `bg_group` based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including `mtry`, `trees`, and `min_n`, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions---such as total miles traveled, age, and the number of household trips---the overall accuracy on the test set was lower than expected (0.447). This is in stark contrast to the numeric-only model that yielded an impressive accuracy of 0.97.
 
 This discrepancy suggests that the inclusion of categorical variables, while enriching the model with more detailed features, may have introduced complexity that lowered predictive performance. Potential factors include the handling of missing data, the level of feature interactions, and how the model managed high-cardinality categorical variables.
 
 # Conclusion
 
-In conclusion, this project aimed to classify households into four classes: urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log-odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of 44.3%, which proves that this multinomial classification problem was a better fit for decision tree models like random forest, but there is still room for improvement.
+In conclusion, this project aimed to classify households into four classes: urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33.7% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log-odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of 44.7%, which proves that this multinomial classification problem was a better fit for decision tree models like random forest, but there is still room for improvement.
 
 Looking forward with this dataset, there are other models that could classify the observations into the four household density categories more accurately, such as support vector machines, gradient boosted machines, or neural networks. These models could handle the more complex data and patterns that simpler models might not perform as well on. But if we wanted to continue with the random forest model, then more hyperparameter tuning could result in higher accuracy as well. Another aspect of this dataset that could lead to better classification could be to utilize the geospatial features of this dataset. These were explored in the EDA, but could be very helpful predictors for a model to use in the future with this dataset. Overall, by fitting two classification models to the CHTS dataset, there was a lot of important exploration uncovered about the patterns of this data.
