@@ -50,6 +50,8 @@ Repository contents: an explanation of the directory structure of the repository
 
 -   `img` contains
 
+    - `household-density.jpg`
+
 -   `vignette.qmd` - the final vignette document
 
 -   `vignette.html` - the final vignette document rendered in html format
