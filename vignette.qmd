@@ -92,7 +92,7 @@ data <- personHHData  %>%
   select(-pnum)
 ```
 
-Next, we will preprocess out data to be ready for PCA by selecting only the numeric columns and scaling the data. Then we will want to add back in our response variable column, `bg_group`, and our ID column, `hhid`, to the scaled data. Lastly, we want to remove any NA values from the data, since PCA cannot handle them.
+Next, we will preprocess our data to be ready for PCA by selecting only the numeric columns and scaling the data. Then, we will want to add back in our response variable column, `bg_group`, and our ID column, `hhid`, to the scaled data. Lastly, we want to remove any NA values from the data, since PCA cannot handle them.
 ```{r}
 # Preprocess data
 numeric_columns <- sapply(data, is.numeric)
@@ -148,7 +148,7 @@ ggplot(county_bg_all) +
   theme(legend.position="bottom")
 ```
 
-These maps show the total distance traveled by country. The grey counties represent missing data.
+These maps show the total distance traveled by country. The grey counties represent missing data. As we can see, the northern areas of suburban and urban maps have the most missing data. However, all 4 maps have around the same amount of distance traveled. The map with the darkest areas (indicating most miles traveled) is exurban.
 
 ### Sum Trips by Residential Area
 
@@ -172,7 +172,7 @@ rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
 latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = "all")
 ```
 
-This visual represents the number of trips per county by household density categories (urban, suburban, exurban, and rural).
+This visual represents the number of trips per county by household density categories (urban, suburban, exurban, and rural). One thing to take note of is that the exurban map has far less trips taken than the other maps. The rural map has the most trips taken than the other maps. 
 
 ## Data Partitioning
 
