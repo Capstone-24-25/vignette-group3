@@ -117,7 +117,7 @@ scaled_data_clean <- na.omit(scaled_data) %>%
 
 ## Exploratory Data Analysis
 
-Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since the data is geographically structured, we found it helpful to visualize it on a map. Since we are interested in classifying household density categories, we chose 2 variables, \`Sum_PMT\` and \`Sum_Trips\`, which intuitively may be significant in predicting our categories.
+Before we partition our data and fit classification models, we want to get to know our data through some exploratory visualizations. Since the data is geographically structured, we found it helpful to visualize it on a map. Since we are interested in classifying household density categories, we chose 2 variables, `Sum_PMT` and `Sum_Trips`, which intuitively may be significant in predicting our categories.
 
 #### Total Distance by Residential Area
 
