@@ -274,11 +274,9 @@ reduced_pcs <- which(cumulative_variance >= threshold)[1]
 
 # Print the number of PCs to keep
 cat("Number of PCs to retain:", reduced_pcs)
-
-# Plot PC1 vs PC2
-plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
-     main = "PCA - PC1 vs PC2", pch = 19, col = "blue")
 ```
+
+
 
 #### Step 3: Project testing data onto training PCA
 
