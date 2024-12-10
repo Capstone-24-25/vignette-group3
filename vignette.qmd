@@ -500,7 +500,7 @@ tune_result <- tune_grid(
 )
 
 #Save the results in RData File
-save(tune_result, file = "data/tune_result.rda")
+save(tune_result, file = "data/processed/tune_result.rda")
 ```
 
 #### Step 7: Finalize the model
