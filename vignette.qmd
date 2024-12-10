@@ -366,9 +366,9 @@ To implement this, we will be using k-fold cross-validation, which will take the
 
 We will also tune the random forest model parameters to ensure we get the most accurate model. The parameters include: `mtry` which is the number of variables randomly sampled at each split, `trees` which is the number of trees in the random forest, and `min_n` which is the minimum number of observations in each node.
 
-### Step 1: Set up the data for Random Forest modelling
+### Step 1: Set up the data for Random Forest modeling
 
-For Random Forest modelling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
+For Random Forest modeling, we want to use the original clean dataset, from before preprocessing for PCA. However, there is a lot of missing data that we need to take a look at:
 
 ```{r}
 #look at missing data
@@ -517,6 +517,12 @@ final_rf_fit %>%
   vip() +
   theme_minimal()
 ```
+
+According to the variance important plot, the most important variables, in order, are `Sum_PMT`, `Age`, `HH_nTrips`, `DriveAlone_Dist`, `WalkTripsWk`, `HH_income`, `TypicalHoursWk`, `DOW`, `HH_nBikes`, and `Sum_Trips`. However, we had an accuracy of 44.3%, so this plot might not be representative of true feature importance.
+
+We used Random Forest to build a classification model aimed at predicting the bg_group based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including mtry, trees, and min_n, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions—such as total miles traveled, age, and the number of household trips—the overall accuracy on the test set was lower than expected (0.443). This is in stark contrast to the numeric-only model that yielded an impressive accuracy of 0.97.
+
+This discrepancy suggests that the inclusion of categorical variables, while enriching the model with more detailed features, may have introduced complexity that lowered predictive performance. Potential factors include the handling of missing data, the level of feature interactions, and how the model managed high-cardinality categorical variables. 
 
 # Conclusion
 
