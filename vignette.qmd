@@ -529,7 +529,7 @@ head(predictions) %>% kable()
 
 #### Step 8: Evaluate the model
 
-Using a confusion matrix, we can see how many predictions the model classified correctly and incorrectly for each `bg_group` level. We found that the model is best at predicting the Suburban group and the Urban group. After calculating the metrics for this model, we found that it had an accuracy of 0.447.
+Using a confusion matrix, we can see how many predictions the model classified correctly and incorrectly for each `bg_group` level.
 
 ```{r}
 # Confusion matrix
