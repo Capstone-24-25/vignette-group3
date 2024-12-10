@@ -122,6 +122,7 @@ summarise_at(vars(-hhid), mean)
 county_bg_shp <- county_shp %>% 
 merge(data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural"))) %>% 
 left_join(county_bg_aggreg)
+
 # get the CA county data
 county <- ggplot2::map_data("county", region = "california")
 county_bg <- merge(county, data.frame(bg_group = c("Urban", "Suburban", "Exurban", "Rural")))
@@ -152,7 +153,7 @@ rural_TripMap <- mapview(filter(county_bg_shp, bg_group == "Rural"),
 latticeview(urban_TripMap, suburb_TripMap, exurb_TripMap, rural_TripMap, sync = "all")
 
 
-# Data Partitioning
+## Data Partitioning
 
 # Set seed for reproducibility
 set.seed(14531)
@@ -183,12 +184,16 @@ set.seed(14531)
 # Ensure the training and testing data is numeric and convert to a matrix
 train_features_matrix <- as.matrix(train_features)
 test_features_matrix <- as.matrix(test_features)
+
 # Convert training data matrix into a sparse matrix
 train_features_sparse <- as(train_features_matrix, "sparseMatrix")
+
 # Perform PCA on sparse training data matrix using the `sparsevd()` function
 train_svd <- sparsesvd(train_features_sparse, rank = 18)
+
 # Turn projected data into a data frame
 training_projected <- as.data.frame(train_svd$u %*% diag(train_svd$d))
+
 # Assign column names
 colnames(training_projected) <- paste0("PC", 1:ncol(training_projected))
 
@@ -218,6 +223,7 @@ plot(training_projected$PC1, training_projected$PC2, xlab = "PC1", ylab = "PC2",
 # Project testing data onto training PCA
 # Set seed for reproducibility
 set.seed(14531)
+
 # Define reprojection function `reproject_fn`
 reproject_fn <- function(.dtm, train_projected) {
 .dtm_sparse <- as(.dtm, "sparseMatrix")
@@ -225,6 +231,7 @@ test_projected <- as.matrix(.dtm_sparse %*% train_projected$v %*% diag(1 / train
 colnames(test_projected) <- paste0("PC", 1:ncol(test_projected))
 return(test_projected)
 }
+
 # Project the testing matrix onto `training_svd`
 test_projected <- reproject_fn(test_features_matrix, train_svd)
 
@@ -240,7 +247,7 @@ test_projected_reduced <- test_projected[, 1:reduced_pcs]
 # Add response variable, bg_group, back to PCs in training
 reduced_training <- cbind(training_projected_reduced, bg_group = train_labels$bg_group)
 
-# Add response variable, bg_group, back to PCs in training
+# Add response variable, bg_group, back to PCs in testing
 reduced_testing <- cbind(as.data.frame(test_projected_reduced), bg_group = test_labels$bg_group)
 
 # Fit logistic regression model with the PCA reduced training data
@@ -265,14 +272,15 @@ print(paste("Accuracy:", round(accuracy, 4)))
 # Look at number of missing data per column
 colSums(is.na(data))
 
-# Will see that there is a lot of missing data for DisLicensePlt and SchoolMode
-# We will impute these missing values with 'Not Disabled' and'Not in School'respectively
+# Will see that there is a lot of missing data for `DisLicensePlt` and `SchoolMode`
+# We will impute these missing values with 'Not Disabled' and 'Not in School' respectively
 
 # Set seed for reproducibility
 set.seed(14531)
 
-# We will preprocess the original dataset differently for random forest, so we will clean the original dataset now
-# take out columns that are not needed for random forest
+# Preprocess the original dataset differently for random forest ie. take out columns 
+      # that are not needed for random forest
+
 # fill in some missing values then take out any other missing values
 rf_data <- data %>% 
 select(-County, -CTFIP, -MPO, -City, -bg_density, -hhid) %>% 
@@ -296,7 +304,7 @@ mtry = tune(),
 trees = tune(),
 min_n = tune()
 ) %>% 
-set_engine("ranger",importance = "impurity") %>% 
+set_engine("ranger", importance = "impurity") %>% 
 set_mode("classification")
 
 # Define a workflow, add model
@@ -310,7 +318,7 @@ add_formula(bg_group ~ .)
 train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
 
 # Set up a grid to test different parameter combinations
-# Can change these numbers to fit dataframe. Play around with them to see what works best
+# Can change these numbers to fit dataframe - play around with them to see what works best
 rf_grid <- grid_regular(mtry(range = c(5, 30)),
                       #number of variables randomly selected at each split
                       trees(range = c(100, 500)), 
@@ -328,7 +336,6 @@ grid = rf_grid
 
 # Extract the best parameters for the model using accuracy as the metric
 best_params <- select_best(tune_results, metric = "accuracy")
-print(best_params)
 
 # Finalize the workflow with the best parameters
 final_rf <- finalize_workflow(rf_workflow, best_params)
@@ -337,20 +344,21 @@ final_rf <- finalize_workflow(rf_workflow, best_params)
 final_rf_fit <- fit(final_rf, data = train_data)
 
 # Get predictions on the test data 
-# combine with the original data to see how well the model performs
+# combine with the original test data to see how well the model performs
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
 
-#RF Model Evaluation
+# RF Model Evaluation
 # Use confusion matrix to see how well the model classified the different household densities
 confusion_matrix <- predictions %>% 
   conf_mat(truth = bg_group, estimate = .pred_class)
+
+# Display confusion matrix
 print(confusion_matrix)
 
 # Calculate accuracy metric
 accuracy <- predictions %>% 
   metrics(truth = bg_group, estimate = .pred_class) %>% 
   filter(.metric == "accuracy")
-print(accuracy)
 
 # Plot variable importance to see the top 10 variables that had the most impact on the model
 final_rf_fit %>% 
