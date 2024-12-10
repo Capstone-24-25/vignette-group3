@@ -276,7 +276,7 @@ reduced_pcs <- which(cumulative_variance >= threshold)[1]
 cat("Number of PCs to retain:", reduced_pcs)
 ```
 
-Based on the scree plot and cumulative variance plot, we have chosed to retain 12 PCs with an 80% variance threshold. 
+Based on the scree plot and cumulative variance plot, we have chosen to retain 12 PCs with an 80% variance threshold. 
 
 #### Step 3: Project testing data onto training PCA
 
