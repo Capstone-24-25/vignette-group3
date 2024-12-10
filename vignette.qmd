@@ -16,7 +16,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 We'll illustrate these strategies using the `California Household Travel Survey (CHTS)` dataset.
 
-```{r, message=F, warning=F}
+## Data Cleaning
+
+First, we want to load any necessary packages and our 3 datasets into R Studio. We will then merge all 3 datasets into 1 dataframe and convert variables into factors as needed while also filtering out numeric variables that have numbers that represent NAs.
+
+```{r, message=FALSE, warning=FALSE}
 # Loading necessary packages
 library(tidyverse)
 library(ggplot2)
@@ -34,6 +38,7 @@ library(randomForest)
 library(vip)
 library(SparseM)
 library(Matrix)
+library(kableExtra)
 
 # Read in datasets
 PersonData <- read_rds('./Data/raw/PersonData_111A.Rds')
@@ -85,7 +90,10 @@ data <- personHHData  %>%
          WorkMode = as.factor(WorkMode),
          EducationCompl = as.factor(EducationCompl)) %>% 
   select(-pnum)
+```
 
+Next, we will preprocess out data to be ready for PCA by selecting only the numeric columns and scaling the data. Then we will want to add back in our response variable column, `bg_group`, and our ID column, `hhid`, to the scaled data. Lastly, we want to remove any NA values from the data, since PCA cannot handle them.
+```{r}
 # Preprocess data
 numeric_columns <- sapply(data, is.numeric)
 
@@ -170,7 +178,7 @@ This visual represents the number of trips per county by household density categ
 
 Before fitting models, it is imperative to split our data into a training set and a testing set. We will use the training set to train our models. Once our models are trained, we will fit the best model to the testing set and see how it truly performs. We are employing the 80/20 split, where 80% of the data goes to the training data and 20% of the data goes to the testing data. This ensures that there is data to both train our models and properly test model performance. `set.seed()` is used to ensure reproducibility of our findings.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Set seed
 set.seed(14531)
 
@@ -322,7 +330,7 @@ As you can see, the low accuracy indicates that PCA might not be the best approa
 
 Now we aim to find out why the logistic regression model is failing. Since logistic regression models the log-odds of the outcome as a linear combination of the predictors, the model assumes a linear relationship between these items. If the relationship between the predictors and the log-odds is non-linear, the logistic regression model may not perform well, which is demonstrated in the case of this dataset. Let's check the linearity assumptions to further show this.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # Extract non PCA training data
 training_logreg <- training(partitions)
 
@@ -453,7 +461,7 @@ tune_result <- tune_grid(
 )
 
 #Save the results in RData File
-save(tune_result, file = "tune_result.rda")
+save(tune_result, file = "data/tune_result.rda")
 ```
 
 ### Step 7: Finalize the model
@@ -462,7 +470,7 @@ Now that we looked through the different parameter combinations, we want to extr
 
 ```{r}
 #Load back in RData file
-load("tune_result.rda")
+load("data/tune_result.rda")
 # Extract the best parameters
 best_params <- select_best(tune_result, metric = "accuracy")
 print(best_params)
@@ -480,7 +488,7 @@ final_rf_fit <- fit(final_rf, data = train_data)
 # Evaluate the model on the test data
 predictions <- predict(final_rf_fit, test_data) %>% bind_cols(test_data)
 
-head(predictions)
+head(predictions) %>% kable()
 ```
 
 ### Step 8: Evaluate the model
