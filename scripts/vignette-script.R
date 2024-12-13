@@ -298,7 +298,7 @@ set.seed(14531)
 
 # Fill in some missing values then take out any other missing values
 rf_data <- data %>% 
-select(-County, -CTFIP, -MPO, -City, -bg_density, -hhid) %>% 
+select(-County, -CTFIP, -City, -MPO, -bg_density, -hhid) %>% 
 mutate(DisLicensePlt = as.factor(ifelse(is.na(DisLicensePlt), 'Not Disabled', DisLicensePlt)),
        SchoolMode = as.factor(ifelse(is.na(SchoolMode), 'Not in School', SchoolMode))) %>% 
 na.omit()
@@ -336,11 +336,11 @@ train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
 # Can change these numbers to fit dataframe - play around with them to see what works best
 rf_grid <- grid_regular(mtry(range = c(5, 30)),
                       #number of variables randomly selected at each split
-                      trees(range = c(100, 500)), 
+                      trees(range = c(100, 600)), 
                       #number of trees in the forest
                       min_n(range = c(5, 10)),
                       #minimum number of observations in each node
-                      levels = 5)
+                      levels = 7)
 
 # Tune the model with the training folds and the grid
 tune_results <- tune_grid(
@@ -350,10 +350,10 @@ grid = rf_grid
 )
 
 #Save the results in RData File
-save(tune_result, file = "data/processed/tune_result.rda")
+save(tune_results, file = "data/processed/tune_results.rda")
 
 #Load back in RData file
-load("data/processed/tune_result.rda")
+load("data/processed/tune_results.rda")
 
 # Extract the best parameters for the model using accuracy as the metric
 best_params <- select_best(tune_results, metric = "accuracy")

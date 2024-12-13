@@ -411,7 +411,9 @@ For random forest modeling, we want to use the original clean dataset, from befo
 colSums(is.na(data))
 ```
 
-From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate) and `SchoolMode` (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School', respectively. We will also remove any location related variables, as those are directly correlated to `bg_group`, and remove any other rows with missing values.
+From the table, you will see there is a high amount of missing data in `DisLicensePlt` (if the respondent has a disabled license plate) and `SchoolMode` (how the respondent travels to school). We will impute these missing values with 'Not Disabled', and 'Not in School', respectively.
+
+In a previous draft of our random forest model with only numeric variables, we got over 90% accuracy; however, we failed to remove variables that stand for the county where the respondent live, which is directly related to block group density levels. So to get a true look at our model and how variables on household data and travel behavior interact with each other, we will remove any location-related variables and then remove any other rows with missing values.
 
 ```{r}
 # Set seed for reproducibility
@@ -477,10 +479,10 @@ set.seed(14531)
 train_folds <- vfold_cv(train_data, v = 5, strata = bg_group)
 
 # Set up a grid to test parameter combinations
-rf_grid <- grid_regular(mtry(range = c(5, 30)), 
-                        trees(range = c(100, 500)),
-                        min_n(range = c(5, 10)),
-                        levels = 5)
+rf_grid <- grid_regular(mtry(range = c(5, 30)),
+                      trees(range = c(100, 600)), 
+                      min_n(range = c(5, 10)),
+                      levels = 7)
 ```
 
 #### Step 6: Tune the Model
@@ -490,14 +492,14 @@ We will tune the model on the grid we set up with the cross validation folds. Ru
 ```{r, eval = FALSE}
 set.seed(14531)
 # Tune the model
-tune_result <- tune_grid(
+tune_results <- tune_grid(
   rf_workflow,
   resamples = train_folds,
   grid = rf_grid
 )
 
 #Save the results in RData File
-save(tune_result, file = "data/processed/tune_result.rda")
+save(tune_results, file = "data/processed/tune_results.rda")
 ```
 
 #### Step 7: Finalize the model
@@ -506,9 +508,9 @@ Now that we looked through the different parameter combinations, we want to extr
 
 ```{r}
 #Load back in RData file
-load("data/processed/tune_result.rda")
+load("data/processed/tune_results.rda")
 # Extract the best parameters
-best_params <- select_best(tune_result, metric = "accuracy")
+best_params <- select_best(tune_results, metric = "accuracy")
 print(best_params)
 ```
 
@@ -529,7 +531,7 @@ head(predictions) %>% kable()
 
 #### Step 8: Evaluate the model
 
-Using a confusion matrix, we can see how many predictions the model classified correctly and incorrectly for each `bg_group` level.
+Using a confusion matrix, we can see how many predictions the model classified correctly and incorrectly for each `bg_group` level. We can also calculate the accuracy metric.
 
 ```{r}
 # Confusion matrix
@@ -545,7 +547,7 @@ print(accuracy)
 
 ```
 
-We also want to take a look at the top 10 most influential variables to the model's predictions. The most important variable was the total number of miles the person traveled on the survey data, followed by age, and then the number of trips the household takes.
+We also want to take a look at the top 10 most influential variables to the model's predictions. The most important variable was the age of the respondent, total number of miles the person traveled on the survey data, and then the number of trips the household takes.
 
 ```{r}
 # Plot variable importance with top 10 important variables
@@ -554,14 +556,12 @@ final_rf_fit %>%
   theme_minimal()
 ```
 
-According to the variance important plot, the most important variables, in order, are `Sum_PMT`, `Age`, `HH_nTrips`, `DriveAlone_Dist`, `WalkTripsWk`, `HH_income`, `TypicalHoursWk`, `DOW`, `HH_nBikes`, and `Sum_Trips`. However, we had an accuracy of 44.3%, so this plot might not be representative of true feature importance.
+We used random forest to build a classification model aimed at predicting the `bg_group` based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including `mtry`, `trees`, and `min_n`, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions---such as total miles traveled, age, and the number of household trips---the overall accuracy on the test set was lower than expected (0.462). This is in stark contrast to the numeric-only model with location variables that yielded an accuracy of 0.97.
 
-We used random forest to build a classification model aimed at predicting the `bg_group` based on various features. We applied k-fold cross-validation to fine-tune the model's parameters, including `mtry`, `trees`, and `min_n`, to identify the most effective combination. The parameter tuning was performed using a grid search, ensuring that we explored different combinations to optimize performance. While the model showed a reasonably good ability to identify the most important variables contributing to predictions---such as total miles traveled, age, and the number of household trips---the overall accuracy on the test set was lower than expected (0.447). This is in stark contrast to the numeric-only model that yielded an impressive accuracy of 0.97.
-
-This discrepancy suggests that the inclusion of categorical variables, while enriching the model with more detailed features, may have introduced complexity that lowered predictive performance. Potential factors include the handling of missing data, the level of feature interactions, and how the model managed high-cardinality categorical variables.
+This means that location variables played a big part in training the model to be highly accurate. However, this discrepancy could also suggest that the inclusion of categorical variables, while enriching the model with more detailed features, may have introduced complexity that lowered predictive performance. Potential factors include the handling of missing data, the level of feature interactions, and how the model managed high-cardinality categorical variables.
 
 # Conclusion
 
-In conclusion, this project aimed to classify households into four classes: urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33.7% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log-odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of 44.7%, which proves that this multinomial classification problem was a better fit for decision tree models like random forest, but there is still room for improvement.
+In conclusion, this project aimed to classify households into four classes: urban, suburban, exurban, and rural, based on a number of predictors that provided information about each household such as the total miles traveled, total hours worked per week, and total distance walked. Using these 70 predictors, principal component analysis was performed to reduce the dimensionality of the dataset and ultimately 12 principal components were retained, explaining 80% of the cumulative variance. Following PCA, a multinomial logistic regression model was fit which attempted to predict `bg_group` with the 12 principal components. Ultimately, this model failed, resulting in around 33.7% accuracy. This result indicates that the assumptions made for a logistic regression model, like the linearity assumption, failed to hold for this dataset, which was proven through visualizing the non-linear relationship between the log-odds of the outcome and a predictor. This conclusion lead us to explore new classification models like the random forest model. For this model, the hyperparameters `trees`, `m_try`, `min_n` were all tuned, and cross validation was employed to produce a more robust model. These methods produced an accuracy of 46.2%, which proves that this multinomial classification problem was a better fit for decision tree models like random forest, but there is still room for improvement.
 
 Looking forward with this dataset, there are other models that could classify the observations into the four household density categories more accurately, such as support vector machines, gradient boosted machines, or neural networks. These models could handle the more complex data and patterns that simpler models might not perform as well on. But if we wanted to continue with the random forest model, then more hyperparameter tuning could result in higher accuracy as well. Another aspect of this dataset that could lead to better classification could be to utilize the geospatial features of this dataset. These were explored in the EDA, but could be very helpful predictors for a model to use in the future with this dataset. Overall, by fitting two classification models to the CHTS dataset, there was a lot of important exploration uncovered about the patterns of this data.
