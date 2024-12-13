@@ -16,7 +16,7 @@ Vignette on classifying household density categories using logistic regression a
 
 ## Abstract
 
-This vignette explores how logistic regression and random forest models can classify household density categories (urban, suburban, exurban, rural) using data from the 2010-2012 California Household Travel Survey (CHTS). The dataset includes variables such as household demographics, travel behaviors, vehicle ownership, parking preferences, work schedules, and active travel modes. By employing Principal Component Analysis (PCA), we reduce the dataset's high dimensionality, distilling numerous variables into a manageable set of key components that retain the most significant variance. Logistic regression, known for its interpretability, is then used to model the relationship between these principal components and household density categories, providing insights into how demographic and travel behavior variables influence classification. In contrast, random forest, an ensemble learning method, is employed to explore complex, non-linear relationships within the data, leveraging decision tree structures to enhance prediction accuracy. In our logistic regression model, we obtain a rather low accuracy of around 0.337, but in our random forest model, we obtain a higher accuracy of 0.447.
+This vignette explores how logistic regression and random forest models can classify household density categories (urban, suburban, exurban, rural) using data from the 2010-2012 California Household Travel Survey (CHTS). The dataset includes variables such as household demographics, travel behaviors, vehicle ownership, parking preferences, work schedules, and active travel modes. By employing Principal Component Analysis (PCA), we reduce the dataset's high dimensionality, distilling numerous variables into a manageable set of key components that retain the most significant variance. Logistic regression, known for its interpretability, is then used to model the relationship between these principal components and household density categories, providing insights into how demographic and travel behavior variables influence classification. In contrast, random forest, an ensemble learning method, is employed to explore complex, non-linear relationships within the data, leveraging decision tree structures to enhance prediction accuracy. In our logistic regression model, we obtain a rather low accuracy of around 0.337, but in our random forest model, we obtain a higher accuracy of 0.462.
 
 ## Repository Contents
 
@@ -25,7 +25,7 @@ This vignette explores how logistic regression and random forest models can clas
     -   `processed` contains
 
         -   `personHHData_processed.Rds` - contains final data file used for our models
-        -   `tune_result.rda` - contains random forest tuned model
+        -   `tune_results.rda` - contains random forest tuned model
 
     -   `raw` contains
 
